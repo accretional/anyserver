@@ -139,7 +139,7 @@ func serveDirectory(w http.ResponseWriter, sourceFS fs.FS, path string, entries 
 <nav class="breadcrumbs">%s</nav>
 <h2>%s</h2>
 <table class="file-list">
-<thead><tr><th>Name</th><th>Type</th><th>Size</th></tr></thead>
+<thead><tr><th>Name</th><th>Size</th></tr></thead>
 <tbody>
 `, html.EscapeString(displayPath), html.EscapeString(repoName),
 		html.EscapeString(repoName), breadcrumbs, html.EscapeString(displayPath))
@@ -150,16 +150,15 @@ func serveDirectory(w http.ResponseWriter, sourceFS fs.FS, path string, entries 
 		if parent == "." {
 			parent = ""
 		}
-		fmt.Fprintf(w, `<tr><td><a href="/source/%s">..</a></td><td></td><td></td></tr>`, parent)
+		fmt.Fprintf(w, `<tr><td><a href="/source/%s">..</a></td><td></td></tr>`, parent)
 	}
 
 	for _, e := range entries {
 		info, _ := e.Info()
-		var size, fileType string
+		var size string
 		icon := "📄"
 		if e.IsDir() {
 			icon = "📁"
-			fileType = "dir"
 			// Count entries in subdirectory
 			subPath := path + "/" + e.Name()
 			if path == "." {
@@ -168,26 +167,17 @@ func serveDirectory(w http.ResponseWriter, sourceFS fs.FS, path string, entries 
 			if subEntries, err := fs.ReadDir(sourceFS, subPath); err == nil {
 				size = fmt.Sprintf("%d items", len(subEntries))
 			}
-		} else {
-			ext := strings.ToLower(filepath.Ext(e.Name()))
-			if ext != "" {
-				fileType = ext[1:] // strip leading dot
-			} else {
-				fileType = "file"
-			}
-			if info != nil {
-				size = formatSize(info.Size())
-			}
+		} else if info != nil {
+			size = formatSize(info.Size())
 		}
 		entryPath := path + "/" + e.Name()
 		if path == "." {
 			entryPath = e.Name()
 		}
-		fmt.Fprintf(w, "<tr><td>%s <a href=\"/source/%s\">%s</a></td><td>%s</td><td>%s</td></tr>\n",
+		fmt.Fprintf(w, "<tr><td>%s <a href=\"/source/%s\">%s</a></td><td>%s</td></tr>\n",
 			icon,
 			html.EscapeString(entryPath),
 			html.EscapeString(e.Name()),
-			html.EscapeString(fileType),
 			size)
 	}
 

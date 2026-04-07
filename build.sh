@@ -60,10 +60,28 @@ fi
 
 # --- Build ---
 
-echo "Building anyserver..."
-go build -ldflags="-s -w" -o anyserver ./cmd/anyserver/ 2>&1 | tee /tmp/anyserver_build.log
+# Capture the full build log (go build is silent on success, so include our own steps)
+{
+    echo "=== anyserver build ==="
+    echo "date: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+    echo "go: $(go version)"
+    echo ""
+    echo "steps:"
+    echo "  - rsync source to cmd/anyserver/source/"
+    echo "  - copy static assets"
+    echo "  - copy swagger spec"
+    echo "  - generate API reference HTML (swaggerhtml)"
+    echo "  - generate package documentation HTML (godochtml)"
+    echo "  - go build -ldflags=\"-s -w\" -o anyserver ./cmd/anyserver/"
+    echo ""
+    echo "building..."
+} > /tmp/anyserver_build.log
 
-# Capture build log as binarypb
+go build -ldflags="-s -w" -o anyserver ./cmd/anyserver/ 2>&1 | tee -a /tmp/anyserver_build.log
+
+echo "done." >> /tmp/anyserver_build.log
+
+# Write build log as binarypb (will be embedded on NEXT build)
 cat /tmp/anyserver_build.log | ./logpb build cmd/anyserver/build.binarypb
 rm -f /tmp/anyserver_build.log logpb
 
