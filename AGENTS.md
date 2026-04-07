@@ -15,6 +15,8 @@ Before working on this project, run `./setup.sh` to install required tools:
 
 All validation goes through these scripts. Never run go test/build ad-hoc as final validation.
 
+**CRITICAL: ALWAYS run `./LET_IT_RIP.sh` before EVERY `git commit` and `git push`.** No exceptions.
+
 **Scripts must be idempotent.** They kill old servers on their ports, clean up on exit, and work when re-run. Never fix port conflicts or stale processes with one-off commands — update the script to handle it and rerun.
 
 ## Build-time tools

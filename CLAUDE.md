@@ -13,6 +13,8 @@ If something needs to be tested or built, it belongs in a script. If it's not in
 
 Quick `go build ./...` or `go vet ./...` during development to catch compile errors is fine, but the FINAL validation before committing must ALWAYS go through the scripts.
 
+**CRITICAL: ALWAYS run `./LET_IT_RIP.sh` before EVERY `git commit` and `git push`.** No exceptions. Do not commit without running it. Do not push without running it. If you just ran it and are about to push, that is fine. If you are not sure whether you ran it, run it again. The embedded build/test logs, generated HTML, and smoke tests all depend on this pipeline running to completion.
+
 **Build-time tools:**
 - `cmd/swaggerhtml/` — merges OpenAPI specs into static HTML for the `/api/` page (run by build.sh)
 - `cmd/godochtml/` — generates package documentation HTML from Go source using `go/doc` (run by build.sh)
