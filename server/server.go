@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strings"
 
+	appmetrics "github.com/accretional/anyserver/metrics"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
@@ -28,6 +29,7 @@ type Config struct {
 	GRPCRegister     RegisterFunc
 	GatewayRegisters []GatewayRegisterFunc
 	HTTPMux          *http.ServeMux // additional HTTP routes
+	RequestCounter   *appmetrics.RequestCounter
 }
 
 // Run starts a dual gRPC/HTTP server on a single port.
@@ -70,12 +72,18 @@ func Run(cfg Config) error {
 	// Gateway routes under /gateway/ prefix (raw grpc-gateway proxy)
 	httpMux.Handle("/gateway/", http.StripPrefix("/gateway", gwMux))
 
+	// Wrap HTTP with request counter if provided
+	var httpHandler http.Handler = httpMux
+	if cfg.RequestCounter != nil {
+		httpHandler = cfg.RequestCounter.Wrap(httpMux)
+	}
+
 	// Dual handler: route gRPC vs HTTP based on content-type
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.ProtoMajor == 2 && strings.HasPrefix(r.Header.Get("Content-Type"), "application/grpc") {
 			grpcServer.ServeHTTP(w, r)
 		} else {
-			httpMux.ServeHTTP(w, r)
+			httpHandler.ServeHTTP(w, r)
 		}
 	})
 

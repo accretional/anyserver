@@ -37,10 +37,32 @@ cp static/*.css "$EMBED_STATIC/"
 echo "Copying swagger spec..."
 cp proto/docs/docs.swagger.json cmd/anyserver/swagger.json
 
+echo "Generating API reference HTML..."
+go run ./cmd/swaggerhtml/ proto/docs/docs.swagger.json proto/metrics/metrics.swagger.json > cmd/anyserver/api.html
+
+# --- Build logpb tool (for capturing build/test output as binarypb) ---
+
+echo "Building logpb tool..."
+go build -o logpb ./cmd/logpb/
+
+# --- Create placeholder binarypb files if they don't exist ---
+# (These get overwritten by build/test output capture, but must exist for go:embed)
+
+if [ ! -f cmd/anyserver/build.binarypb ]; then
+    echo "(no build log yet)" | ./logpb build cmd/anyserver/build.binarypb
+fi
+if [ ! -f cmd/anyserver/tests.binarypb ]; then
+    echo "(no test log yet)" | ./logpb test cmd/anyserver/tests.binarypb
+fi
+
 # --- Build ---
 
 echo "Building anyserver..."
-go build -ldflags="-s -w" -o anyserver ./cmd/anyserver/
+go build -ldflags="-s -w" -o anyserver ./cmd/anyserver/ 2>&1 | tee /tmp/anyserver_build.log
+
+# Capture build log as binarypb
+cat /tmp/anyserver_build.log | ./logpb build cmd/anyserver/build.binarypb
+rm -f /tmp/anyserver_build.log logpb
 
 echo ""
 echo "=== Build complete: ./anyserver ==="

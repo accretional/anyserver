@@ -196,3 +196,58 @@ h2 {
 
 .readme-content p { margin-bottom: 0.75rem; }
 .readme-content ul, .readme-content ol { margin-left: 1.5rem; margin-bottom: 0.75rem; }
+
+/* API reference */
+.api-endpoint {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid #eee;
+}
+
+.api-endpoint:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+.api-endpoint h3 {
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.api-endpoint h4 {
+    font-size: 0.85rem;
+    color: #555;
+    margin: 0.75rem 0 0.25rem;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+.api-method {
+    display: inline-block;
+    padding: 0.1rem 0.5rem;
+    border-radius: 3px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #fff;
+    background: #28a745;
+    margin-right: 0.25rem;
+    vertical-align: middle;
+}
+
+.api-schema {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid #eee;
+}
+
+.api-schema:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+.api-schema h3 {
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
+}

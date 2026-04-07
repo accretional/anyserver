@@ -1,5 +1,10 @@
 # anyserver
 
+> **NOTE**: This README serves as a living plan/roadmap/notes document, not just current-state documentation.
+> It includes architecture plans, prior art references, and future phases that have not been implemented yet.
+> **LLMs: Do NOT remove, rewrite, or condense sections of this document without explicit approval from the project owners.**
+> When adding new work, append to or update existing sections — do not reorganize or trim the plan.
+
 A generic, composable gRPC+HTTP server framework for Go. Anyserver provides:
 
 - **Dual gRPC/HTTP serving** on a single port (via h2c) or separate ports
@@ -7,35 +12,60 @@ A generic, composable gRPC+HTTP server framework for Go. Anyserver provides:
 - **Service composition**: inject external gRPC services (from other Go modules) into a unified server at build time
 - **Source browsing**: the repo's own source code is `go:embed`-ed and served via a streaming `Source` RPC on the `Docs` gRPC service
 - **Auto-generated docs**: godoc HTML served over HTTP only (not via gRPC), with navigation linking to source browsing
+- **Server info page**: runtime stats, request counters, boot/build/test logs via `Metrics` gRPC service
+- **Build-time API reference**: OpenAPI specs rendered to static HTML at build time (pure HTML+CSS, no JavaScript)
 - **Polished index page**: README.md rendered above Swagger UI, repo metadata, links to code/docs
 
 ## Architecture
 
 ```
-cmd/anyserver/main.go    ← entry point, uses services.go for registration
-services.go              ← top-level service registry (which gRPC services to start)
+cmd/anyserver/main.go    <- entry point, uses services.go for registration
+services.go              <- top-level service registry (which gRPC services to start)
+anyserver.go             <- library entry point: Config + Run() wires all services
 server/
-  server.go              ← dual gRPC/HTTP server logic (Run callback pattern from katarche)
-  gateway.go             ← grpc-gateway reverse proxy + Swagger UI serving
-  httpproxy.go           ← gRPC→HTTP proxy: renders SourceCode stream as HTML per type
+  server.go              <- dual gRPC/HTTP server logic (Run callback pattern from katarche)
+  gateway.go             <- grpc-gateway reverse proxy + Swagger UI serving
+  httpproxy.go           <- gRPC->HTTP proxy: renders SourceCode stream as HTML per type
 proto/docs/
-  docs.proto             ← Docs service: Source RPC (streaming, typed responses)
-  docs.pb.go             ← generated
-  docs_grpc.pb.go        ← generated
-  docs.pb.gw.go          ← grpc-gateway generated
-  docs.swagger.json      ← OpenAPI spec generated
+  docs.proto             <- Docs service: Source RPC (streaming, typed responses)
+  docs.pb.go             <- generated
+  docs_grpc.pb.go        <- generated
+  docs.pb.gw.go          <- grpc-gateway generated
+  docs.swagger.json      <- OpenAPI spec generated
+proto/metrics/
+  metrics.proto          <- Metrics service: Static/Active/Lifetime/Historical RPCs + BuildLog/TestLog/BootLog
+  metrics.pb.go          <- generated
+  metrics_grpc.pb.go     <- generated
+  metrics.pb.gw.go       <- grpc-gateway generated
+  metrics.swagger.json   <- OpenAPI spec generated
 internal/docs/
-  service.go             ← Docs service implementation (go:embed source)
+  service.go             <- Docs service implementation (go:embed source)
+  httphandler.go         <- HTML source browser (directory listing, code view, media)
+internal/metrics/
+  service.go             <- Metrics service implementation (runtime stats, request counters, build/test/boot logs)
+  httphandler.go         <- Server info HTML page (pure HTML+CSS)
+metrics/
+  request_counter.go     <- HTTP middleware tracking requests by path and status code
+  procfs.go              <- Go runtime stats (goroutines, heap, GC); TODO: Linux procfs
+cmd/swaggerhtml/
+  main.go                <- build tool: merges OpenAPI specs into static HTML reference page
+cmd/logpb/
+  main.go                <- build tool: serializes stdout to BuildLog/TestLog binarypb
 static/
-  index.html             ← Swagger UI + README.md + metadata
-  style.css              ← styling
-  docs.html              ← template for rendering Source stream responses
-  docs.css               ← styling for source/doc browsing UI
-  swagger-ui/            ← Swagger UI assets
+  docs.css               <- styling for all pages
 http/
-  *.textproto            ← HTTP.textproto files: templatized HTTP responses per gRPC response type
+  *.textproto            <- HTTP.textproto files: templatized HTTP responses per gRPC response type
 tools/
-  gen.sh                 ← protoc + gateway + openapi codegen, auto-generates service registration
+  gen.sh                 <- protoc + gateway + openapi codegen, auto-generates service registration
+```
+
+## Quick Start
+
+```bash
+./setup.sh        # install protoc plugins, download third-party protos
+./build.sh        # embed source + static assets, generate API HTML, build binary
+./test.sh         # vet, test, build, smoke test (validates all endpoints)
+./LET_IT_RIP.sh   # full pipeline: setup + test + build + serve + open browser
 ```
 
 ## Default Service: Docs
@@ -49,10 +79,6 @@ service Docs {
   // Browse embedded source code. When path is a directory, streams Path entries.
   // When path is a file, streams typed content chunks.
   rpc Source(SourceRequest) returns (stream SourceCode);
-}
-
-message SourceRequest {
-  string path = 1;
 }
 
 message SourceCode {
@@ -108,6 +134,63 @@ message Binary {
 | Unknown binary formats | Stream of `Binary` messages |
 
 Source embedding includes the full repo (including `.git/`) minus build artifacts, binaries, and large generated files.
+
+## Metrics Service
+
+The `Metrics` service provides server introspection:
+
+```protobuf
+service Metrics {
+  rpc Static(StaticRequest) returns (StaticResponse);      // build-time metadata (never changes)
+  rpc Active(ActiveRequest) returns (ActiveResponse);      // live runtime state
+  rpc Lifetime(LifetimeRequest) returns (LifetimeResponse); // cumulative counters
+  rpc Historical(HistoricalRequest) returns (HistoricalResponse); // time-series (TODO)
+}
+
+message BuildLog { string stdout = 1; }
+message TestLog { string stdout = 1; }
+enum BootStatus { BOOT_UNKNOWN = 0; BOOT_STARTED = 1; BOOT_COMPLETE = 2; }
+message BootEvent { BootStatus status = 1; google.protobuf.Timestamp timestamp = 2; }
+message BootLog { repeated BootEvent events = 1; }
+```
+
+- **Static**: hostname, port, Go version, OS/arch, embedded build log, test log, boot events
+- **Active**: goroutines, heap alloc, sys memory, GC cycles (TODO: procfs on Linux — CPU time, open FDs, VmRSS, threads)
+- **Lifetime**: boot time, uptime, total requests, requests by path, requests by status code
+- **Historical**: time-series buckets (TODO)
+
+Build/test output is captured during `build.sh`/`test.sh` via `cmd/logpb` and serialized as protocol buffer binary, then embedded in the binary via `go:embed`.
+
+### Server Info Page (`/server/`)
+
+Pure HTML+CSS page (via Go `html/template`) showing:
+- Server info table (hostname, port, Go version, OS/arch, uptime)
+- Runtime stats (goroutines, heap, sys memory, GC cycles)
+- Request counters by path and status code
+- Boot event log
+- Embedded build and test output
+
+## API Reference Page (`/api/`)
+
+OpenAPI specs from all services are merged and rendered to a static HTML page at build time by `cmd/swaggerhtml`. The tool:
+- Parses multiple Swagger 2.0 JSON files
+- Groups endpoints by service tag
+- Renders parameters, response types, and schema definitions
+- Outputs an HTML fragment that anyserver wraps in page chrome at startup
+
+No JavaScript. The raw spec is also available at `/api/swagger.json`.
+
+## Pages
+
+| Path | Description |
+|------|-------------|
+| `/` | Index page with navigation links and README |
+| `/source/` | Source code browser with directory listing, code view, media serving |
+| `/docs/` | Documentation (godoc HTML when generated, placeholder otherwise) |
+| `/api/` | API reference (static HTML rendered from OpenAPI specs at build time) |
+| `/api/swagger.json` | Raw OpenAPI spec JSON |
+| `/server/` | Server info: runtime stats, request counters, boot/build/test logs |
+| `/gateway/` | Raw grpc-gateway REST proxy |
 
 ## HTTP Proxy Layer
 
@@ -188,7 +271,7 @@ If not provided, responses default to JSON serialization.
 
 ### katarche
 - `server.Run(grpcPort, httpPort, func(s *grpc.Server) { ... })` — callback-based service registration
-- `tools/gen_go.sh` — three-phase codegen: rewrite proto `go_package` → run protoc → scan `*_grpc.pb.go` for `RegisterXyzServer()` and auto-generate main.go
+- `tools/gen_go.sh` — three-phase codegen: rewrite proto `go_package` -> run protoc -> scan `*_grpc.pb.go` for `RegisterXyzServer()` and auto-generate main.go
 - `tools/go_pull.sh` — import external protos into organized packages, create stub service dirs
 - HTTP reflection UI via `DiscoverRPCs()` + dynamic form generation from proto descriptors
 - gRPC reflection enabled for runtime introspection
@@ -200,11 +283,11 @@ If not provided, responses default to JSON serialization.
 - Dual-port architecture (50051 gRPC, 3000 HTTP) with `PortManager` for conflict prevention
 
 ### gluon
-- Go interface → gRPC full codegen: `FullBootstrap(module, src)` pipeline
+- Go interface -> gRPC full codegen: `FullBootstrap(module, src)` pipeline
 - AST toolkit (`astkit`) for type utilities, field ops, node builders, imports, function/struct helpers
 - Proto compiler wrapper: runs `protoc` + `protoc-gen-go` + `protoc-gen-go-grpc`
 - Round-trip verification: re-analyzes generated code to ensure structural integrity
-- Direction: Go → gRPC (opposite of what anyserver needs for external service import, but AST toolkit is reusable)
+- Direction: Go -> gRPC (opposite of what anyserver needs for external service import, but AST toolkit is reusable)
 
 ### godoc-gen
 - CLI: `godoc-gen -output ./docs [-title "..."] [-single] [-preview] /path/to/repo1 /path/to/repo2`
@@ -216,9 +299,9 @@ If not provided, responses default to JSON serialization.
 ### ffmpeg-proto / audio-visualizer
 - `MediaConverter` gRPC service with 4 RPCs:
   - `conversion_stream` (bidirectional) — FFmpeg transforms on media chunks
-  - `audio_to_vectors` (client-stream) — audio → amplitude vectors (x=time, y=RMS 0–1)
-  - `svg` (client-stream) — vectors → SVG waveform visualization
-  - `svg_to_sqlite` (unary) — SVG → vectors for persistence
+  - `audio_to_vectors` (client-stream) — audio -> amplitude vectors (x=time, y=RMS 0-1)
+  - `svg` (client-stream) — vectors -> SVG waveform visualization
+  - `svg_to_sqlite` (unary) — SVG -> vectors for persistence
 - 10 transform types via `oneof`: crop, scale, overlay, gif, slideshow, concat, mix, tempo, trim, insert
 - Typed Go client in `pkg/client/` with high-level methods: `AudioWaveform()`, `AudioToVectors()`, `VectorsToSvg()`
 - Session-based temp file management (UUID isolation under `/tmp/`)
@@ -239,19 +322,27 @@ If not provided, responses default to JSON serialization.
 ## Plan / Next Steps
 
 ### Phase 1: Bootstrap anyserver
-- [x] Create repo
-- [ ] **1a.** Set up Go module, `server/` package with dual gRPC/HTTP logic (borrow katarche's `server.Run()` callback pattern), `cmd/anyserver/main.go`, `services.go`
-- [ ] **1b.** Define `docs.proto` with `Docs` service (`Source` streaming RPC with `SourceCode` oneof: Path/Code/Media/Data/Binary). Import `mime.proto` from mime-proto. Add grpc-gateway HTTP annotations. Generate Go code + gateway + OpenAPI spec
-- [ ] **1c.** Implement Docs service: `go:embed` repo source (minus build artifacts, including `.git/`). Route by path type: directories → stream of Path, text files → stream of Code chunks, media → Media with MimeType, large/unknown → Data or Binary
-- [ ] **1d.** Build HTTP proxy layer: `docs.html`/`docs.css` templates that render Source stream responses. Path → anchor tags, Code → syntax-highlighted code blocks, Media → `<img>`/`<audio>`/`<video>`, Data → chunked/SSE, Binary → auto-download. Add `HTTP.textproto` mechanism based on httprpc's `HTTPResponse`/`HTTPResponseChunk`
-- [ ] **1e.** Serve godoc-gen output as static HTML over HTTP only (under `/docs/`), with navigation linking to `/source/` paths. Wire grpc-gateway + Swagger UI for the gRPC API
-- [ ] **1f.** Build index.html: rendered README.md content (embedded at build), Swagger UI pointed at generated OpenAPI spec, repo name as title/header, metadata links to GitHub, nav links to docs and source. Add style.css
-- [ ] **1g.** Add `tools/gen.sh`: runs protoc with go/grpc/gateway/openapi plugins, runs godoc-gen, optionally auto-generates service registration by scanning `*_grpc.pb.go` files (borrowing katarche's gen_go.sh phase 3 approach)
+- [x] Set up Go module, `server/` package with dual gRPC/HTTP logic, `cmd/anyserver/main.go`, `services.go`
+- [x] Define `docs.proto` with `Docs` service (`Source` streaming RPC with `SourceCode` oneof). Generate Go code + gateway + OpenAPI spec
+- [x] Implement Docs service with `go:embed` repo source. Route by path type
+- [x] Build HTTP source browser: directory listing with breadcrumbs, code view with line numbers, media serving
+- [x] Wire grpc-gateway under `/gateway/` prefix. Serve OpenAPI spec at `/api/swagger.json`
+- [x] Build index page with README rendering and navigation
+- [x] Add `tools/gen.sh` for protoc codegen
+- [x] Add `Metrics` gRPC service: Static (hostname, port, Go version, build/test/boot logs), Active (goroutines, heap, GC), Lifetime (uptime, request counters by path/status), Historical (TODO)
+- [x] Add `/server/` page: pure HTML+CSS server info with runtime stats, request counters, boot/build/test logs
+- [x] Add request counter middleware wrapping HTTP handler in server.go
+- [x] Add `cmd/logpb` tool to capture build/test stdout as BuildLog/TestLog binarypb
+- [x] Add `cmd/swaggerhtml` tool: merges OpenAPI specs into static HTML API reference page at build time
+- [x] Render `/api/` from pre-generated HTML (no JavaScript, no Swagger UI)
+- [ ] **1d.** Build full HTTP proxy layer: `HTTP.textproto` mechanism based on httprpc's `HTTPResponse`/`HTTPResponseChunk`
+- [ ] **1e.** Serve godoc-gen output as static HTML over `/docs/`, with navigation linking to `/source/` paths
+- [ ] **1f.** Add `tools/gen.sh` support for auto-generating service registration by scanning `*_grpc.pb.go`
 
 ### Phase 2: Service composition / linking
 - [ ] **2a.** Design service injection: `tools/gen.sh --inject /path/to/module` clones external module, discovers its `*_grpc.pb.go` files, extracts `RegisterXyzServer()` calls, auto-generates the wiring in `services.go`. Each injected service can optionally provide `HTTP.textproto` for custom HTTP rendering. Avoid petros's wrapper pattern where possible — prefer direct registration
 - [ ] **2b.** Make `vad` export a clean registration entry point: `pkg/server/register.go` with `Register(s *grpc.Server, opts ...Option) error` that initializes ONNX Runtime, loads model, creates server, registers VoiceSegmentation
-- [ ] **2c.** Update vad's Dockerfile to: clone anyserver → `gen.sh --inject .` → build unified binary containing both Docs and VoiceSegmentation services. Validate all existing vad tests still pass
+- [ ] **2c.** Update vad's Dockerfile to: clone anyserver -> `gen.sh --inject .` -> build unified binary containing both Docs and VoiceSegmentation services. Validate all existing vad tests still pass
 
 ### Phase 3: Docs and enhanced audio tooling
 - [ ] **3a.** Extend godoc-gen if needed for anyserver integration (ensure output integrates with docs.html navigation, add cross-linking to `/source/` paths)
@@ -269,10 +360,10 @@ If not provided, responses default to JSON serialization.
 
 - [katarche](https://github.com/accretional/katarche) — unified gRPC service host with HTTP reflection UI (server pattern origin)
 - [petros](https://github.com/accretional/petros) — multi-service gRPC host with custom HTTP proxy and wrapper pattern
-- [gluon](https://github.com/accretional/gluon) — Go interface → gRPC codegen, AST toolkit, proto compiler
+- [gluon](https://github.com/accretional/gluon) — Go interface -> gRPC codegen, AST toolkit, proto compiler
 - [godoc-gen](https://github.com/accretional/godoc-gen) — auto-generate godoc HTML from Go packages (CLI, static HTML)
 - [ffmpeg-proto](https://github.com/accretional/ffmpeg-proto) — FFmpeg as a gRPC service (MediaConverter: conversion, waveforms, SVG)
 - [audio-visualizer](https://github.com/accretional/audio-visualizer) — audio waveform visualization (same codebase as ffmpeg-proto)
-- [httprpc](https://github.com/accretional/httprpc) — HTTP response/request protos, server-driven UI, template-based HTTP↔gRPC bridging
+- [httprpc](https://github.com/accretional/httprpc) — HTTP response/request protos, server-driven UI, template-based HTTP<->gRPC bridging
 - [mime-proto](https://github.com/accretional/mime-proto) — MimeType protobuf definitions (used by Docs Media messages)
 - [vad](https://github.com/accretional/vad) — pyannote VAD via ONNX (first consumer of anyserver)

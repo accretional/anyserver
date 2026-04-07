@@ -29,5 +29,17 @@ protoc \
     --openapiv2_out=proto/docs \
     docs.proto
 
+# --- Generate metrics proto ---
+
+echo "  proto/metrics/metrics.proto"
+protoc \
+    -I proto/metrics \
+    -I third_party \
+    --go_out=proto/metrics --go_opt=paths=source_relative \
+    --go-grpc_out=proto/metrics --go-grpc_opt=paths=source_relative \
+    --grpc-gateway_out=proto/metrics --grpc-gateway_opt=paths=source_relative \
+    --openapiv2_out=proto/metrics \
+    metrics.proto
+
 echo ""
 echo "=== Proto generation complete ==="

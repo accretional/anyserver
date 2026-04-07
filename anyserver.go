@@ -5,9 +5,13 @@ import (
 	"html/template"
 	"io/fs"
 	"net/http"
+	"strings"
 
 	"github.com/accretional/anyserver/internal/docs"
-	pb "github.com/accretional/anyserver/proto/docs"
+	internalmetrics "github.com/accretional/anyserver/internal/metrics"
+	appmetrics "github.com/accretional/anyserver/metrics"
+	docspb "github.com/accretional/anyserver/proto/docs"
+	metricspb "github.com/accretional/anyserver/proto/metrics"
 	"github.com/accretional/anyserver/server"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"google.golang.org/grpc"
@@ -33,6 +37,15 @@ type Config struct {
 	// SwaggerJSON is the raw OpenAPI spec JSON (optional).
 	SwaggerJSON []byte
 
+	// APIHTML is pre-generated API reference HTML fragment (from swaggerhtml tool).
+	APIHTML []byte
+
+	// BuildLogPB is the serialized BuildLog proto (optional, from build.binarypb).
+	BuildLogPB []byte
+
+	// TestLogPB is the serialized TestLog proto (optional, from tests.binarypb).
+	TestLogPB []byte
+
 	// ReadmeHTML is pre-rendered README content for the index page.
 	ReadmeHTML template.HTML
 
@@ -49,6 +62,10 @@ type Config struct {
 // Run starts the anyserver with the given configuration.
 func Run(cfg Config) error {
 	docsSvc := docs.New(cfg.SourceFS)
+	counter := appmetrics.NewRequestCounter()
+	metricsSvc := internalmetrics.New(cfg.Port, counter, cfg.BuildLogPB, cfg.TestLogPB)
+
+	metricsSvc.RecordBootStarted()
 
 	httpMux := http.NewServeMux()
 
@@ -72,12 +89,16 @@ func Run(cfg Config) error {
 			w.Header().Set("Content-Type", "application/json")
 			w.Write(cfg.SwaggerJSON)
 		})
+	}
+	if len(cfg.APIHTML) > 0 {
+		apiPage := renderAPIPage(cfg.RepoName, template.HTML(cfg.APIHTML))
 		httpMux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 			if r.URL.Path != "/api/" {
 				http.NotFound(w, r)
 				return
 			}
-			serveSwaggerPage(w, cfg.RepoName)
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			w.Write(apiPage)
 		})
 	} else {
 		httpMux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
@@ -85,6 +106,9 @@ func Run(cfg Config) error {
 				"No OpenAPI spec available. Run <code>tools/gen.sh</code> to generate.")
 		})
 	}
+
+	// Mount server/metrics page
+	httpMux.Handle("/server/", metricsSvc.HTTPHandler(cfg.RepoName))
 
 	// Serve static assets
 	if cfg.StaticFS != nil {
@@ -108,35 +132,38 @@ func Run(cfg Config) error {
 	// Gateway registrations
 	gateways := []server.GatewayRegisterFunc{
 		func(ctx context.Context, mux *runtime.ServeMux, conn *grpc.ClientConn) error {
-			return pb.RegisterDocsHandlerClient(ctx, mux, pb.NewDocsClient(conn))
+			return docspb.RegisterDocsHandlerClient(ctx, mux, docspb.NewDocsClient(conn))
+		},
+		func(ctx context.Context, mux *runtime.ServeMux, conn *grpc.ClientConn) error {
+			return metricspb.RegisterMetricsHandlerClient(ctx, mux, metricspb.NewMetricsClient(conn))
 		},
 	}
 	gateways = append(gateways, cfg.ExtraGateway...)
 
+	metricsSvc.RecordBootComplete()
+
 	return server.Run(server.Config{
 		Port: cfg.Port,
 		GRPCRegister: func(s *grpc.Server) {
-			pb.RegisterDocsServer(s, docsSvc)
+			docspb.RegisterDocsServer(s, docsSvc)
+			metricspb.RegisterMetricsServer(s, metricsSvc)
 			for _, reg := range cfg.ExtraGRPC {
 				reg(s)
 			}
 		},
 		GatewayRegisters: gateways,
 		HTTPMux:          httpMux,
+		RequestCounter:   counter,
 	})
 }
 
 func serveIndex(w http.ResponseWriter, cfg Config) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-
 	tmpl := template.Must(template.New("index").Parse(indexTemplate))
 	tmpl.Execute(w, struct {
 		RepoName   string
 		ReadmeHTML template.HTML
-	}{
-		RepoName:   cfg.RepoName,
-		ReadmeHTML: cfg.ReadmeHTML,
-	})
+	}{cfg.RepoName, cfg.ReadmeHTML})
 }
 
 func servePlaceholder(w http.ResponseWriter, repoName, section, message string) {
@@ -149,11 +176,25 @@ func servePlaceholder(w http.ResponseWriter, repoName, section, message string) 
 	}{repoName, section, template.HTML(message)})
 }
 
-func serveSwaggerPage(w http.ResponseWriter, repoName string) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	tmpl := template.Must(template.New("swagger").Parse(swaggerTemplate))
-	tmpl.Execute(w, struct{ RepoName string }{repoName})
+func renderAPIPage(repoName string, content template.HTML) []byte {
+	tmpl := template.Must(template.New("api").Parse(apiPageTemplate))
+	var buf strings.Builder
+	tmpl.Execute(&buf, struct {
+		RepoName string
+		Content  template.HTML
+	}{repoName, content})
+	return []byte(buf.String())
 }
+
+const navHTML = `<header class="header">
+  <a href="/" class="header-title">{{.RepoName}}</a>
+  <nav class="header-nav">
+    <a href="/source/">Source</a>
+    <a href="/docs/">Docs</a>
+    <a href="/api/">API</a>
+    <a href="/server/">Server</a>
+  </nav>
+</header>`
 
 const indexTemplate = `<!DOCTYPE html>
 <html lang="en">
@@ -164,14 +205,7 @@ const indexTemplate = `<!DOCTYPE html>
 <link rel="stylesheet" href="/static/docs.css">
 </head>
 <body>
-<header class="header">
-  <a href="/" class="header-title">{{.RepoName}}</a>
-  <nav class="header-nav">
-    <a href="/source/">Source</a>
-    <a href="/docs/">Docs</a>
-    <a href="/api/">API</a>
-  </nav>
-</header>
+` + navHTML + `
 <main class="content">
   <section class="index-section">
     <h2>Navigation</h2>
@@ -179,6 +213,7 @@ const indexTemplate = `<!DOCTYPE html>
       <a href="/source/">Browse Source</a>
       <a href="/docs/">Documentation</a>
       <a href="/api/">API (OpenAPI)</a>
+      <a href="/server/">Server Info</a>
     </div>
   </section>
   {{if .ReadmeHTML}}
@@ -200,14 +235,7 @@ const placeholderTemplate = `<!DOCTYPE html>
 <link rel="stylesheet" href="/static/docs.css">
 </head>
 <body>
-<header class="header">
-  <a href="/" class="header-title">{{.RepoName}}</a>
-  <nav class="header-nav">
-    <a href="/source/">Source</a>
-    <a href="/docs/">Docs</a>
-    <a href="/api/">API</a>
-  </nav>
-</header>
+` + navHTML + `
 <main class="content">
   <section class="index-section">
     <h2>{{.Section}}</h2>
@@ -217,7 +245,7 @@ const placeholderTemplate = `<!DOCTYPE html>
 </body>
 </html>`
 
-const swaggerTemplate = `<!DOCTYPE html>
+const apiPageTemplate = `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -226,32 +254,9 @@ const swaggerTemplate = `<!DOCTYPE html>
 <link rel="stylesheet" href="/static/docs.css">
 </head>
 <body>
-<header class="header">
-  <a href="/" class="header-title">{{.RepoName}}</a>
-  <nav class="header-nav">
-    <a href="/source/">Source</a>
-    <a href="/docs/">Docs</a>
-    <a href="/api/">API</a>
-  </nav>
-</header>
+` + navHTML + `
 <main class="content">
-  <section class="index-section">
-    <h2>API</h2>
-    <p>OpenAPI specification: <a href="/api/swagger.json">/api/swagger.json</a></p>
-    <h3>Docs Service</h3>
-    <table class="file-list">
-      <thead><tr><th>Method</th><th>Path</th><th>Description</th></tr></thead>
-      <tbody>
-        <tr>
-          <td>GET</td>
-          <td><code>/source/{path}</code></td>
-          <td>Browse embedded source. Returns directory listings, code, media, or binary.</td>
-        </tr>
-      </tbody>
-    </table>
-    <h3>gRPC</h3>
-    <p>gRPC reflection is enabled. Connect with any gRPC client on the same port.</p>
-  </section>
+{{.Content}}
 </main>
 </body>
 </html>`

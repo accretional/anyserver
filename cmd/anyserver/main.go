@@ -23,6 +23,15 @@ var staticFS embed.FS
 //go:embed swagger.json
 var swaggerJSON []byte
 
+//go:embed build.binarypb
+var buildLogPB []byte
+
+//go:embed tests.binarypb
+var testLogPB []byte
+
+//go:embed api.html
+var apiHTML []byte
+
 func main() {
 	port := flag.Int("port", 8080, "server port")
 	repoName := flag.String("name", "anyserver", "repository/project name")
@@ -54,6 +63,9 @@ func main() {
 		SourceFS:    srcFS,
 		StaticFS:    staticSub,
 		SwaggerJSON: swaggerJSON,
+		APIHTML:     apiHTML,
+		BuildLogPB:  buildLogPB,
+		TestLogPB:   testLogPB,
 		ReadmeHTML:  readmeHTML,
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)

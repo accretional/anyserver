@@ -13,6 +13,12 @@ If something needs to be tested or built, it belongs in a script. If it's not in
 
 Quick `go build ./...` or `go vet ./...` during development to catch compile errors is fine, but the FINAL validation before committing must ALWAYS go through the scripts.
 
+**Build-time tools:**
+- `cmd/swaggerhtml/` — merges OpenAPI specs into static HTML for the `/api/` page (run by build.sh)
+- `cmd/logpb/` — serializes stdout to BuildLog/TestLog binarypb (run by build.sh and test.sh)
+
+**README is a plan/roadmap.** Do NOT remove, rewrite, or condense sections without explicit approval. When adding new work, update existing sections — do not reorganize or trim.
+
 ## Web UI philosophy
 
 - HTML + CSS only. No client-side JavaScript unless absolutely necessary.

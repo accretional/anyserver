@@ -1,0 +1,293 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "metrics.proto",
+    "version": "version not set"
+  },
+  "tags": [
+    {
+      "name": "Metrics"
+    }
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/metrics/active": {
+      "get": {
+        "summary": "Active returns current live server state (connections, goroutines, memory).",
+        "operationId": "Metrics_Active",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/metricsActiveResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "Metrics"
+        ]
+      }
+    },
+    "/metrics/historical": {
+      "get": {
+        "summary": "Historical returns time-series data (request rates, latencies over time).\nTODO: implement after compaction",
+        "operationId": "Metrics_Historical",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/metricsHistoricalResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "windowSeconds",
+            "description": "how far back to look",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          }
+        ],
+        "tags": [
+          "Metrics"
+        ]
+      }
+    },
+    "/metrics/lifetime": {
+      "get": {
+        "summary": "Lifetime returns cumulative counters since boot (total requests, errors).",
+        "operationId": "Metrics_Lifetime",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/metricsLifetimeResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "Metrics"
+        ]
+      }
+    },
+    "/metrics/static": {
+      "get": {
+        "summary": "Static returns build-time and boot-time metadata (never changes after boot).",
+        "operationId": "Metrics_Static",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/metricsStaticResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "Metrics"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "metricsActiveResponse": {
+      "type": "object",
+      "properties": {
+        "goroutines": {
+          "type": "string",
+          "format": "int64"
+        },
+        "heapAllocBytes": {
+          "type": "string",
+          "format": "int64"
+        },
+        "sysBytes": {
+          "type": "string",
+          "format": "int64"
+        },
+        "numGc": {
+          "type": "string",
+          "format": "int64",
+          "title": "TODO: add procfs data (cpu, open fds, etc.) after compaction"
+        }
+      }
+    },
+    "metricsBootEvent": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "$ref": "#/definitions/metricsBootStatus"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "metricsBootLog": {
+      "type": "object",
+      "properties": {
+        "events": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/metricsBootEvent"
+          }
+        }
+      }
+    },
+    "metricsBootStatus": {
+      "type": "string",
+      "enum": [
+        "BOOT_UNKNOWN",
+        "BOOT_STARTED",
+        "BOOT_COMPLETE"
+      ],
+      "default": "BOOT_UNKNOWN"
+    },
+    "metricsBuildLog": {
+      "type": "object",
+      "properties": {
+        "stdout": {
+          "type": "string"
+        }
+      }
+    },
+    "metricsHistoricalResponse": {
+      "type": "object",
+      "properties": {
+        "placeholder": {
+          "type": "string",
+          "title": "TODO: implement time-series buckets after compaction"
+        }
+      }
+    },
+    "metricsLifetimeResponse": {
+      "type": "object",
+      "properties": {
+        "bootTime": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "uptimeSeconds": {
+          "type": "string",
+          "format": "int64"
+        },
+        "totalRequests": {
+          "type": "string",
+          "format": "int64"
+        },
+        "requestsByPath": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "format": "int64"
+          }
+        },
+        "requestsByStatus": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "format": "int64"
+          }
+        }
+      }
+    },
+    "metricsStaticResponse": {
+      "type": "object",
+      "properties": {
+        "hostname": {
+          "type": "string"
+        },
+        "port": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "goVersion": {
+          "type": "string"
+        },
+        "os": {
+          "type": "string"
+        },
+        "arch": {
+          "type": "string"
+        },
+        "buildLog": {
+          "$ref": "#/definitions/metricsBuildLog"
+        },
+        "testLog": {
+          "$ref": "#/definitions/metricsTestLog"
+        },
+        "bootLog": {
+          "$ref": "#/definitions/metricsBootLog"
+        }
+      }
+    },
+    "metricsTestLog": {
+      "type": "object",
+      "properties": {
+        "stdout": {
+          "type": "string"
+        }
+      }
+    },
+    "protobufAny": {
+      "type": "object",
+      "properties": {
+        "@type": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": {}
+    },
+    "rpcStatus": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "message": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/protobufAny"
+          }
+        }
+      }
+    }
+  }
+}

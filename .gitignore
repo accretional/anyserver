@@ -1,8 +1,12 @@
 .DS_Store
 /anyserver
+/logpb
 cmd/anyserver/source/
 cmd/anyserver/static/
 cmd/anyserver/swagger.json
+cmd/anyserver/build.binarypb
+cmd/anyserver/tests.binarypb
+cmd/anyserver/api.html
 vendor/
 *.exe
 *.test

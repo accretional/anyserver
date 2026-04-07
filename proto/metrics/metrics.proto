@@ -1,0 +1,94 @@
+syntax = "proto3";
+
+package anyserver.metrics;
+
+option go_package = "github.com/accretional/anyserver/proto/metrics;metricspb";
+
+import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
+
+service Metrics {
+  // Static returns build-time and boot-time metadata (never changes after boot).
+  rpc Static(StaticRequest) returns (StaticResponse) {
+    option (google.api.http) = { get: "/metrics/static" };
+  }
+
+  // Active returns current live server state (connections, goroutines, memory).
+  rpc Active(ActiveRequest) returns (ActiveResponse) {
+    option (google.api.http) = { get: "/metrics/active" };
+  }
+
+  // Lifetime returns cumulative counters since boot (total requests, errors).
+  rpc Lifetime(LifetimeRequest) returns (LifetimeResponse) {
+    option (google.api.http) = { get: "/metrics/lifetime" };
+  }
+
+  // Historical returns time-series data (request rates, latencies over time).
+  // TODO: implement after compaction
+  rpc Historical(HistoricalRequest) returns (HistoricalResponse) {
+    option (google.api.http) = { get: "/metrics/historical" };
+  }
+}
+
+message StaticRequest {}
+message StaticResponse {
+  string hostname = 1;
+  int32 port = 2;
+  string go_version = 3;
+  string os = 4;
+  string arch = 5;
+  BuildLog build_log = 6;
+  TestLog test_log = 7;
+  BootLog boot_log = 8;
+}
+
+message ActiveRequest {}
+message ActiveResponse {
+  int64 goroutines = 1;
+  int64 heap_alloc_bytes = 2;
+  int64 sys_bytes = 3;
+  int64 num_gc = 4;
+  // TODO: add procfs data (cpu, open fds, etc.) after compaction
+}
+
+message LifetimeRequest {}
+message LifetimeResponse {
+  google.protobuf.Timestamp boot_time = 1;
+  int64 uptime_seconds = 2;
+  int64 total_requests = 3;
+  map<string, int64> requests_by_path = 4;
+  map<int32, int64> requests_by_status = 5;
+}
+
+message HistoricalRequest {
+  int32 window_seconds = 1;  // how far back to look
+}
+message HistoricalResponse {
+  // TODO: implement time-series buckets after compaction
+  string placeholder = 1;
+}
+
+// --- Build / Test / Boot logs ---
+
+message BuildLog {
+  string stdout = 1;
+}
+
+message TestLog {
+  string stdout = 1;
+}
+
+enum BootStatus {
+  BOOT_UNKNOWN = 0;
+  BOOT_STARTED = 1;
+  BOOT_COMPLETE = 2;
+}
+
+message BootEvent {
+  BootStatus status = 1;
+  google.protobuf.Timestamp timestamp = 2;
+}
+
+message BootLog {
+  repeated BootEvent events = 1;
+}

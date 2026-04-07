@@ -34,7 +34,12 @@ go vet ./...
 
 echo ""
 echo "=== Unit tests ==="
-go test -v ./...
+go test -v ./... 2>&1 | tee /tmp/anyserver_test.log
+
+# Capture test log as binarypb (build logpb first)
+go build -o logpb ./cmd/logpb/
+cat /tmp/anyserver_test.log | ./logpb test cmd/anyserver/tests.binarypb
+rm -f /tmp/anyserver_test.log logpb
 
 # --- Step 3: Build ---
 
@@ -78,6 +83,7 @@ check_status "http://localhost:$TEST_PORT/docs/" "200" "GET /docs/"
 check_status "http://localhost:$TEST_PORT/api/" "200" "GET /api/"
 check_status "http://localhost:$TEST_PORT/api/swagger.json" "200" "GET /api/swagger.json"
 check_status "http://localhost:$TEST_PORT/static/docs.css" "200" "GET /static/docs.css"
+check_status "http://localhost:$TEST_PORT/server/" "200" "GET /server/"
 check_status "http://localhost:$TEST_PORT/nonexistent" "404" "GET /nonexistent"
 
 echo ""

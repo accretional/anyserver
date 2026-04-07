@@ -132,6 +132,7 @@ func serveDirectory(w http.ResponseWriter, path string, entries []fs.DirEntry, r
     <a href="/source/">Source</a>
     <a href="/docs/">Docs</a>
     <a href="/api/">API</a>
+    <a href="/server/">Server</a>
   </nav>
 </header>
 <main class="content">
@@ -201,6 +202,7 @@ func serveCodeFile(w http.ResponseWriter, path, contents, filename, repoName str
     <a href="/source/">Source</a>
     <a href="/docs/">Docs</a>
     <a href="/api/">API</a>
+    <a href="/server/">Server</a>
   </nav>
 </header>
 <main class="content">
