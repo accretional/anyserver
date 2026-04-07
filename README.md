@@ -74,35 +74,79 @@ COPY . /app
 RUN cd /anyserver && ./tools/gen.sh --inject /app && go build -o /server ./cmd/anyserver
 ```
 
+## Prior Art & Patterns Borrowed
+
+### katarche
+- `server.Run(grpcPort, httpPort, func(s *grpc.Server) { ... })` — callback-based service registration
+- `tools/gen_go.sh` — three-phase codegen: rewrite proto `go_package` → run protoc → scan `*_grpc.pb.go` for `RegisterXyzServer()` and auto-generate main.go
+- `tools/go_pull.sh` — import external protos into organized packages, create stub service dirs
+- HTTP reflection UI via `DiscoverRPCs()` + dynamic form generation from proto descriptors
+- gRPC reflection enabled for runtime introspection
+
+### petros
+- `registerServer(grpcServer)` — central function registering 9+ services at once
+- Wrapper pattern for external services (CollectionServiceWrapper, etc.) to avoid method conflicts
+- Custom HTTP-to-gRPC `/rpc-proxy/` bridge via reflection (same approach as katarche)
+- Dual-port architecture (50051 gRPC, 3000 HTTP) with `PortManager` for conflict prevention
+
+### gluon
+- Go interface → gRPC full codegen: `FullBootstrap(module, src)` pipeline
+- AST toolkit (`astkit`) for type utilities, field ops, node builders, imports, function/struct helpers
+- Proto compiler wrapper: runs `protoc` + `protoc-gen-go` + `protoc-gen-go-grpc`
+- Round-trip verification: re-analyzes generated code to ensure structural integrity
+- Direction: Go → gRPC (opposite of what anyserver needs for external service import, but AST toolkit is reusable)
+
+### godoc-gen
+- CLI: `godoc-gen -output ./docs [-title "..."] [-single] [-preview] /path/to/repo1 /path/to/repo2`
+- Generates static HTML via `go/parser` + `go/doc` AST parsing, styled like pkg.go.dev
+- Single-file mode: self-contained HTML with embedded CSS/JS and package data as JSON
+- Multi-file mode: `index.html` homepage + individual package pages under `pkg/`
+- Built-in preview server on port 8090
+
+### ffmpeg-proto / audio-visualizer
+- `MediaConverter` gRPC service with 4 RPCs:
+  - `conversion_stream` (bidirectional) — FFmpeg transforms on media chunks
+  - `audio_to_vectors` (client-stream) — audio → amplitude vectors (x=time, y=RMS 0–1)
+  - `svg` (client-stream) — vectors → SVG waveform visualization
+  - `svg_to_sqlite` (unary) — SVG → vectors for persistence
+- 10 transform types via `oneof`: crop, scale, overlay, gif, slideshow, concat, mix, tempo, trim, insert
+- Typed Go client in `pkg/client/` with high-level methods: `AudioWaveform()`, `AudioToVectors()`, `VectorsToSvg()`
+- Session-based temp file management (UUID isolation under `/tmp/`)
+
 ## Plan / Next Steps
 
 ### Phase 1: Bootstrap anyserver
 - [x] Create repo
 - [ ] **1a.** Set up Go module, `server/` package with dual gRPC/HTTP logic (borrow katarche's `server.Run()` callback pattern), `cmd/anyserver/main.go`, `services.go`
-- [ ] **1b.** Define `docs.proto` with `Docs` service (GetSource, ListSource, HTML). Generate Go code
-- [ ] **1c.** Implement Docs service: `go:embed` repo source, serve via GetSource/ListSource. HTML returns placeholder initially
-- [ ] **1d.** Integrate grpc-gateway: add HTTP annotations to `docs.proto`, generate gateway proxy + OpenAPI spec, wire into HTTP server
-- [ ] **1e.** Build index.html: rendered README.md, Swagger UI, repo name as title, metadata links. Add style.css
-- [ ] **1f.** Add `tools/gen.sh`: runs protoc with go/grpc/gateway/openapi plugins, optionally auto-generates service registration by scanning `*_grpc.pb.go`
+- [ ] **1b.** Define `docs.proto` with `Docs` service (GetSource, ListSource, HTML). Add grpc-gateway HTTP annotations and generate Go code + gateway + OpenAPI spec
+- [ ] **1c.** Implement Docs service: `go:embed` repo source (minus build artifacts, including `.git/`), serve via GetSource/ListSource. HTML serves godoc-gen output (run `godoc-gen -single -output internal/docs/generated/` at build time)
+- [ ] **1d.** Wire grpc-gateway reverse proxy into the HTTP server alongside static file serving. Swagger UI served from embedded assets
+- [ ] **1e.** Build index.html: rendered README.md content (embedded at build), Swagger UI pointed at generated OpenAPI spec, repo name as title/header, metadata links to GitHub. Add style.css
+- [ ] **1f.** Add `tools/gen.sh`: runs protoc with go/grpc/gateway/openapi plugins, runs godoc-gen, optionally auto-generates service registration by scanning `*_grpc.pb.go` files (borrowing katarche's gen_go.sh phase 3 approach)
 
 ### Phase 2: Service composition / linking
-- [ ] **2a.** Design service injection pattern: external modules export `Register(*grpc.Server)`, gen.sh discovers and wires them
-- [ ] **2b.** Make `vad` export a clean `Register()` entry point
-- [ ] **2c.** Update vad's Dockerfile to clone anyserver, inject vad's service, build — validate composition works
+- [ ] **2a.** Design service injection: `tools/gen.sh --inject /path/to/module` clones external module, discovers its `*_grpc.pb.go` files, extracts `RegisterXyzServer()` calls, auto-generates the wiring in `services.go`. Avoid petros's wrapper pattern where possible — prefer direct registration. If method conflicts arise, use the wrapper approach as fallback
+- [ ] **2b.** Make `vad` export a clean registration entry point: `pkg/server/register.go` with `Register(s *grpc.Server, opts ...Option) error` that initializes ONNX Runtime, loads model, creates server, registers VoiceSegmentation
+- [ ] **2c.** Update vad's Dockerfile to: clone anyserver → `gen.sh --inject .` → build unified binary containing both Docs and VoiceSegmentation services. Validate all existing vad tests still pass
 
-### Phase 3: Docs and enhanced tooling
-- [ ] **3a.** Build/extend `godoc-gen` to produce static HTML from Go packages. Wire into Docs service's `HTML()` RPC
-- [ ] **3b.** Define pattern for integrating `ffmpeg-proto` and `audio-visualizer` as composable services
-- [ ] **3c.** Enhanced client-side audio management in basic-vad-web
+### Phase 3: Docs and enhanced audio tooling
+- [ ] **3a.** Extend godoc-gen if needed for anyserver integration (ensure single-file mode output can be embedded cleanly, add any missing features for multi-module docs)
+- [ ] **3b.** Integrate ffmpeg-proto as a composable service via the injection pattern: its `MediaConverter` service gets registered alongside Docs and VoiceSegmentation. Gateway annotations expose audio conversion as REST endpoints
+- [ ] **3c.** Enhanced vad web UI: use ffmpeg-proto's `audio_to_vectors` + `svg` RPCs for server-side waveform visualization of uploaded audio. Add client-side download buttons for segmented chunks. Display SVG waveforms inline in results
+- [ ] **3d.** Audio format handling: use ffmpeg-proto's `conversion_stream` for server-side decoding of any audio format to 16kHz PCM (currently client-side only via Web Audio API). This enables gRPC clients (not just browser) to send MP3/WAV directly
 
 ### Phase 4: Validation
-- [ ] **4a.** Full test validation: anyserver builds standalone, vad builds with anyserver composition, all existing tests pass, Swagger UI and docs accessible
+- [ ] **4a.** anyserver builds and runs standalone with just the Docs service
+- [ ] **4b.** vad builds with anyserver composition — all existing vad tests pass
+- [ ] **4c.** ffmpeg-proto composes cleanly — waveform generation works end-to-end
+- [ ] **4d.** Swagger UI shows all services, godoc HTML is browsable, source is viewable
 
 ## Related Projects
 
 - [katarche](https://github.com/accretional/katarche) — unified gRPC service host with HTTP reflection UI (server pattern origin)
+- [petros](https://github.com/accretional/petros) — multi-service gRPC host with custom HTTP proxy and wrapper pattern
 - [gluon](https://github.com/accretional/gluon) — Go interface → gRPC codegen, AST toolkit, proto compiler
-- [godoc-gen](https://github.com/accretional/godoc-gen) — auto-generate godoc HTML from Go packages
-- [ffmpeg-proto](https://github.com/accretional/ffmpeg-proto) — FFmpeg as a gRPC service
-- [audio-visualizer](https://github.com/accretional/audio-visualizer) — audio visualization service
+- [godoc-gen](https://github.com/accretional/godoc-gen) — auto-generate godoc HTML from Go packages (CLI, static HTML)
+- [ffmpeg-proto](https://github.com/accretional/ffmpeg-proto) — FFmpeg as a gRPC service (MediaConverter: conversion, waveforms, SVG)
+- [audio-visualizer](https://github.com/accretional/audio-visualizer) — audio waveform visualization (same codebase as ffmpeg-proto)
 - [vad](https://github.com/accretional/vad) — pyannote VAD via ONNX (first consumer of anyserver)
