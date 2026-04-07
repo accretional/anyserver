@@ -11,5 +11,8 @@ Before working on this project, run `./setup.sh` to install required tools:
 - `./tools/gen.sh` — regenerate all proto code
 - `./build.sh` — prepare embedded source + build binary
 - `./test.sh` — full validation (vet, test, build, smoke test)
+- `./LET_IT_RIP.sh` — full pipeline: setup + test + build + serve + open browser
 
 All validation goes through these scripts. Never run go test/build ad-hoc as final validation.
+
+**Scripts must be idempotent.** They kill old servers on their ports, clean up on exit, and work when re-run. Never fix port conflicts or stale processes with one-off commands — update the script to handle it and rerun.

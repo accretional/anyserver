@@ -4,7 +4,25 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR"
 
+TEST_PORT=18090
+
 echo "=== anyserver tests ==="
+
+# --- Pre-run cleanup ---
+
+echo ""
+echo "=== Pre-run cleanup ==="
+lsof -ti ":$TEST_PORT" 2>/dev/null | xargs -r kill -9 2>/dev/null || true
+
+# --- Cleanup on exit ---
+
+cleanup() {
+    echo ""
+    echo "=== Cleaning up ==="
+    lsof -ti ":$TEST_PORT" 2>/dev/null | xargs -r kill -9 2>/dev/null || true
+    rm -f ./anyserver
+}
+trap cleanup EXIT
 
 # --- Step 1: go vet ---
 
@@ -28,20 +46,12 @@ bash build.sh
 
 echo ""
 echo "=== Smoke test ==="
-PORT=18090
-./anyserver -port "$PORT" -name "anyserver-test" &
+./anyserver -port "$TEST_PORT" -name "anyserver-test" &
 SERVER_PID=$!
-
-cleanup() {
-    kill "$SERVER_PID" 2>/dev/null || true
-    wait "$SERVER_PID" 2>/dev/null || true
-    rm -f ./anyserver
-}
-trap cleanup EXIT
 
 # Wait for server
 for i in $(seq 1 15); do
-    if curl -s -o /dev/null "http://localhost:$PORT/" 2>/dev/null; then
+    if curl -s -o /dev/null "http://localhost:$TEST_PORT/" 2>/dev/null; then
         echo "Server is ready."
         break
     fi
@@ -62,10 +72,13 @@ check_status() {
     fi
 }
 
-check_status "http://localhost:$PORT/" "200" "GET /"
-check_status "http://localhost:$PORT/source/" "200" "GET /source/"
-check_status "http://localhost:$PORT/static/docs.css" "200" "GET /static/docs.css"
-check_status "http://localhost:$PORT/nonexistent" "404" "GET /nonexistent"
+check_status "http://localhost:$TEST_PORT/" "200" "GET /"
+check_status "http://localhost:$TEST_PORT/source/" "200" "GET /source/"
+check_status "http://localhost:$TEST_PORT/docs/" "200" "GET /docs/"
+check_status "http://localhost:$TEST_PORT/api/" "200" "GET /api/"
+check_status "http://localhost:$TEST_PORT/api/swagger.json" "200" "GET /api/swagger.json"
+check_status "http://localhost:$TEST_PORT/static/docs.css" "200" "GET /static/docs.css"
+check_status "http://localhost:$TEST_PORT/nonexistent" "404" "GET /nonexistent"
 
 echo ""
 echo "=== All tests passed ==="
