@@ -91,22 +91,18 @@ check_status "http://localhost:$PORT/nonexistent" "404" "GET /nonexistent"
 echo ""
 echo "=== All checks passed ==="
 
-# --- Open browser (skip in CI mode) ---
+# --- Open browser ---
 
-if [ "${CI:-}" = "1" ] || [ "${1:-}" = "--ci" ]; then
-    echo "CI mode — skipping browser open."
+URL="http://localhost:${PORT}"
+echo "Opening $URL in browser..."
+if command -v open &>/dev/null; then
+    open "$URL"
+elif command -v xdg-open &>/dev/null; then
+    xdg-open "$URL"
 else
-    URL="http://localhost:${PORT}"
-    echo "Opening $URL in browser..."
-    if command -v open &>/dev/null; then
-        open "$URL"
-    elif command -v xdg-open &>/dev/null; then
-        xdg-open "$URL"
-    else
-        echo "  (no browser opener found, visit $URL manually)"
-    fi
-
-    echo ""
-    echo "Press Ctrl+C to stop the server."
-    wait "$SERVER_PID"
+    echo "  (no browser opener found, visit $URL manually)"
 fi
+
+echo ""
+echo "Press Ctrl+C to stop the server."
+wait "$SERVER_PID"
