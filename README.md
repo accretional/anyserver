@@ -5,8 +5,8 @@ A generic, composable gRPC+HTTP server framework for Go. Anyserver provides:
 - **Dual gRPC/HTTP serving** on a single port (via h2c) or separate ports
 - **grpc-gateway** REST proxy with auto-generated Swagger UI
 - **Service composition**: inject external gRPC services (from other Go modules) into a unified server at build time
-- **Auto-generated docs**: godoc HTML embedded in the binary and served via a built-in `Docs` gRPC service
-- **Source browsing**: the repo's own source code is `go:embed`-ed and served via `GetSource`/`ListSource` RPCs
+- **Source browsing**: the repo's own source code is `go:embed`-ed and served via a streaming `Source` RPC on the `Docs` gRPC service
+- **Auto-generated docs**: godoc HTML served over HTTP only (not via gRPC), with navigation linking to source browsing
 - **Polished index page**: README.md rendered above Swagger UI, repo metadata, links to code/docs
 
 ## Architecture
@@ -17,37 +17,141 @@ services.go              ← top-level service registry (which gRPC services to 
 server/
   server.go              ← dual gRPC/HTTP server logic (Run callback pattern from katarche)
   gateway.go             ← grpc-gateway reverse proxy + Swagger UI serving
+  httpproxy.go           ← gRPC→HTTP proxy: renders SourceCode stream as HTML per type
 proto/docs/
-  docs.proto             ← Docs service: GetSource, ListSource, HTML
+  docs.proto             ← Docs service: Source RPC (streaming, typed responses)
   docs.pb.go             ← generated
   docs_grpc.pb.go        ← generated
   docs.pb.gw.go          ← grpc-gateway generated
   docs.swagger.json      ← OpenAPI spec generated
 internal/docs/
-  service.go             ← Docs service implementation (go:embed source + godoc HTML)
+  service.go             ← Docs service implementation (go:embed source)
 static/
   index.html             ← Swagger UI + README.md + metadata
   style.css              ← styling
+  docs.html              ← template for rendering Source stream responses
+  docs.css               ← styling for source/doc browsing UI
   swagger-ui/            ← Swagger UI assets
+http/
+  *.textproto            ← HTTP.textproto files: templatized HTTP responses per gRPC response type
 tools/
   gen.sh                 ← protoc + gateway + openapi codegen, auto-generates service registration
 ```
 
 ## Default Service: Docs
 
-The built-in `Docs` service provides three RPCs:
+The `Docs` service provides a single streaming RPC for source browsing:
 
 ```protobuf
+import "openformat/v1/mime.proto";
+
 service Docs {
-  rpc GetSource(SourceRequest) returns (SourceResponse);   // Get file contents by path
-  rpc ListSource(SourceRequest) returns (SourceListResponse); // List files/dirs at path
-  rpc HTML(DocRequest) returns (DocResponse);               // Get auto-generated godoc HTML
+  // Browse embedded source code. When path is a directory, streams Path entries.
+  // When path is a file, streams typed content chunks.
+  rpc Source(SourceRequest) returns (stream SourceCode);
+}
+
+message SourceRequest {
+  string path = 1;
+}
+
+message SourceCode {
+  oneof kind {
+    Path path = 1;       // Directory listing entry (file or subdirectory)
+    Code code = 2;       // Source code / text file chunk
+    Media media = 3;     // Image, audio, video, etc.
+    Data data = 4;       // Generic streamed data (large files, mixed content)
+    Binary binary = 5;   // Opaque binary (triggers download over HTTP)
+  }
+}
+
+message Path {
+  string name = 1;
+  bool is_dir = 2;
+  int64 size = 3;
+}
+
+message Code {
+  string contents = 1;   // Text chunk (sequential chunks concatenate to full file)
+  string filename = 2;   // Original filename (used for language detection)
+}
+
+message Media {
+  bytes contents = 1;
+  string filename = 2;
+  openformat.v1.MimeType mime_type = 3;
+}
+
+message Data {
+  oneof kind {
+    string type_url = 1;   // Describes the data format
+    string text = 2;       // Human-readable label/description
+    string file_name = 3;  // Associated filename
+    bool continue = 4;     // More chunks follow
+  }
+  bytes contents = 5;
+}
+
+message Binary {
+  bytes contents = 1;
 }
 ```
 
-All three are also exposed as REST endpoints via grpc-gateway annotations.
+### Behavior by path type
 
-Source embedding includes the full repo (including `.git/`) minus build artifacts, binaries, and large generated files. Godoc HTML is generated at build time by `godoc-gen` and embedded alongside.
+| Input path | Response stream |
+|-----------|----------------|
+| Directory | Stream of `Path` messages (one per entry in the directory) |
+| `.go`, `.proto`, `.sh`, `.md`, `.js`, `.css`, `.html`, `.json`, `.yaml`, `.toml`, text files | Stream of `Code` messages (sequential chunks that concatenate to the full file) |
+| `.png`, `.jpg`, `.svg`, `.mp3`, `.wav`, `.mp4`, etc. | Stream of `Media` messages with appropriate `MimeType` from [mime-proto](https://github.com/accretional/mime-proto) |
+| Large files, mixed content | Stream of `Data` messages with metadata |
+| Unknown binary formats | Stream of `Binary` messages |
+
+Source embedding includes the full repo (including `.git/`) minus build artifacts, binaries, and large generated files.
+
+## HTTP Proxy Layer
+
+Auto-generated godoc HTML is served **over HTTP only** (not via gRPC). The HTTP server handles `/docs/` paths using `docs.html` and `docs.css` templates.
+
+When the HTTP proxy receives a `Source` stream from the gRPC service, it renders each `SourceCode` variant differently:
+
+| SourceCode type | HTTP rendering |
+|----------------|---------------|
+| `Path` | Anchor tags (`<a href="/source/path/to/entry">`) with directory/file icons |
+| `Code` | Code-block UI elements with language hint from filename extension (e.g., ` ```proto ... ``` ` style rendering with syntax highlighting) |
+| `Media` | Appropriate media element for the MIME type (`<img>`, `<audio>`, `<video>`, etc.) with MIME metadata in headers |
+| `Data` | Generic streamed response (chunked transfer / SSE for ongoing data) |
+| `Binary` | Auto-download response (`Content-Disposition: attachment`) |
+
+### HTTP response templating
+
+Each gRPC service can provide an `HTTP.textproto` file containing templatized HTTP response mappings per response type. This is based on `HTTPResponse` from [accretional/httprpc](https://github.com/accretional/httprpc) (`proto/service.proto`):
+
+```protobuf
+// From httprpc — HTTPResponse envelope
+message HTTPResponse {
+  int32 status_code = 1;
+  repeated HTTPHeader headers = 2;
+  Body body = 3;
+  map<string, google.protobuf.Value> decoded_data = 4;
+}
+
+// Streaming variant for SSE / chunked responses
+message HTTPResponseChunk {
+  oneof content {
+    ResponseMetadata metadata = 1;
+    bytes data_chunk = 2;
+    google.protobuf.Struct json_chunk = 3;
+    ResponseTrailers trailers = 4;
+  }
+}
+```
+
+If a service does not provide `HTTP.textproto`, the default behavior is to convert the gRPC response to JSON.
+
+For streaming RPCs like `Source`, SSE (Server-Sent Events) may be used to push typed chunks to the browser, where `docs.html`/`docs.css` handle progressive rendering client-side.
+
+The docs UI includes navigation: header/column linking to `/source/` URLs, project-level links, and breadcrumb navigation through the source tree.
 
 ## Service Composition Pattern
 
@@ -73,6 +177,12 @@ RUN git clone https://github.com/accretional/anyserver /anyserver
 COPY . /app
 RUN cd /anyserver && ./tools/gen.sh --inject /app && go build -o /server ./cmd/anyserver
 ```
+
+Each injected service can optionally provide:
+- `HTTP.textproto` — custom HTTP response templates for its gRPC response types
+- `docs.html` / `docs.css` — custom rendering for its HTTP-browsable endpoints
+
+If not provided, responses default to JSON serialization.
 
 ## Prior Art & Patterns Borrowed
 
@@ -113,33 +223,47 @@ RUN cd /anyserver && ./tools/gen.sh --inject /app && go build -o /server ./cmd/a
 - Typed Go client in `pkg/client/` with high-level methods: `AudioWaveform()`, `AudioToVectors()`, `VectorsToSvg()`
 - Session-based temp file management (UUID isolation under `/tmp/`)
 
+### httprpc
+- `HTTPResponse { status_code, headers, body, decoded_data }` — unified response envelope
+- `HTTPResponseChunk { oneof { metadata, data_chunk, json_chunk, trailers } }` — streaming variant for SSE/chunked
+- `DisplayService` — server-driven UI via `HTMLEncode` messages (backend controls DOM without JS frameworks)
+- `HTTPEncode`/`HTTPDecode` — template-based request building and response extraction (JSON paths, CSS selectors, regex)
+- UI component protos: `Table`, `Form`, `CodeBlock`, `Image` for server-side rendering
+- `Body` oneof: raw bytes, JSON (`google.protobuf.Struct`), empty, or multipart
+
+### mime-proto
+- `MimeType { oneof type { DiscreteType discrete_media_type; string other_discrete_type; MultipartType multipart_type; } string sub_type; repeated MimeParameter params; }`
+- `DiscreteType` enum: application, audio, example, font, image, model, text, video
+- Used by `Media` messages in the Docs service to annotate embedded media files
+
 ## Plan / Next Steps
 
 ### Phase 1: Bootstrap anyserver
 - [x] Create repo
 - [ ] **1a.** Set up Go module, `server/` package with dual gRPC/HTTP logic (borrow katarche's `server.Run()` callback pattern), `cmd/anyserver/main.go`, `services.go`
-- [ ] **1b.** Define `docs.proto` with `Docs` service (GetSource, ListSource, HTML). Add grpc-gateway HTTP annotations and generate Go code + gateway + OpenAPI spec
-- [ ] **1c.** Implement Docs service: `go:embed` repo source (minus build artifacts, including `.git/`), serve via GetSource/ListSource. HTML serves godoc-gen output (run `godoc-gen -single -output internal/docs/generated/` at build time)
-- [ ] **1d.** Wire grpc-gateway reverse proxy into the HTTP server alongside static file serving. Swagger UI served from embedded assets
-- [ ] **1e.** Build index.html: rendered README.md content (embedded at build), Swagger UI pointed at generated OpenAPI spec, repo name as title/header, metadata links to GitHub. Add style.css
-- [ ] **1f.** Add `tools/gen.sh`: runs protoc with go/grpc/gateway/openapi plugins, runs godoc-gen, optionally auto-generates service registration by scanning `*_grpc.pb.go` files (borrowing katarche's gen_go.sh phase 3 approach)
+- [ ] **1b.** Define `docs.proto` with `Docs` service (`Source` streaming RPC with `SourceCode` oneof: Path/Code/Media/Data/Binary). Import `mime.proto` from mime-proto. Add grpc-gateway HTTP annotations. Generate Go code + gateway + OpenAPI spec
+- [ ] **1c.** Implement Docs service: `go:embed` repo source (minus build artifacts, including `.git/`). Route by path type: directories → stream of Path, text files → stream of Code chunks, media → Media with MimeType, large/unknown → Data or Binary
+- [ ] **1d.** Build HTTP proxy layer: `docs.html`/`docs.css` templates that render Source stream responses. Path → anchor tags, Code → syntax-highlighted code blocks, Media → `<img>`/`<audio>`/`<video>`, Data → chunked/SSE, Binary → auto-download. Add `HTTP.textproto` mechanism based on httprpc's `HTTPResponse`/`HTTPResponseChunk`
+- [ ] **1e.** Serve godoc-gen output as static HTML over HTTP only (under `/docs/`), with navigation linking to `/source/` paths. Wire grpc-gateway + Swagger UI for the gRPC API
+- [ ] **1f.** Build index.html: rendered README.md content (embedded at build), Swagger UI pointed at generated OpenAPI spec, repo name as title/header, metadata links to GitHub, nav links to docs and source. Add style.css
+- [ ] **1g.** Add `tools/gen.sh`: runs protoc with go/grpc/gateway/openapi plugins, runs godoc-gen, optionally auto-generates service registration by scanning `*_grpc.pb.go` files (borrowing katarche's gen_go.sh phase 3 approach)
 
 ### Phase 2: Service composition / linking
-- [ ] **2a.** Design service injection: `tools/gen.sh --inject /path/to/module` clones external module, discovers its `*_grpc.pb.go` files, extracts `RegisterXyzServer()` calls, auto-generates the wiring in `services.go`. Avoid petros's wrapper pattern where possible — prefer direct registration. If method conflicts arise, use the wrapper approach as fallback
+- [ ] **2a.** Design service injection: `tools/gen.sh --inject /path/to/module` clones external module, discovers its `*_grpc.pb.go` files, extracts `RegisterXyzServer()` calls, auto-generates the wiring in `services.go`. Each injected service can optionally provide `HTTP.textproto` for custom HTTP rendering. Avoid petros's wrapper pattern where possible — prefer direct registration
 - [ ] **2b.** Make `vad` export a clean registration entry point: `pkg/server/register.go` with `Register(s *grpc.Server, opts ...Option) error` that initializes ONNX Runtime, loads model, creates server, registers VoiceSegmentation
 - [ ] **2c.** Update vad's Dockerfile to: clone anyserver → `gen.sh --inject .` → build unified binary containing both Docs and VoiceSegmentation services. Validate all existing vad tests still pass
 
 ### Phase 3: Docs and enhanced audio tooling
-- [ ] **3a.** Extend godoc-gen if needed for anyserver integration (ensure single-file mode output can be embedded cleanly, add any missing features for multi-module docs)
-- [ ] **3b.** Integrate ffmpeg-proto as a composable service via the injection pattern: its `MediaConverter` service gets registered alongside Docs and VoiceSegmentation. Gateway annotations expose audio conversion as REST endpoints
+- [ ] **3a.** Extend godoc-gen if needed for anyserver integration (ensure output integrates with docs.html navigation, add cross-linking to `/source/` paths)
+- [ ] **3b.** Integrate ffmpeg-proto as a composable service via the injection pattern: its `MediaConverter` service gets registered alongside Docs and VoiceSegmentation. Provide `HTTP.textproto` for waveform SVG rendering
 - [ ] **3c.** Enhanced vad web UI: use ffmpeg-proto's `audio_to_vectors` + `svg` RPCs for server-side waveform visualization of uploaded audio. Add client-side download buttons for segmented chunks. Display SVG waveforms inline in results
 - [ ] **3d.** Audio format handling: use ffmpeg-proto's `conversion_stream` for server-side decoding of any audio format to 16kHz PCM (currently client-side only via Web Audio API). This enables gRPC clients (not just browser) to send MP3/WAV directly
 
 ### Phase 4: Validation
-- [ ] **4a.** anyserver builds and runs standalone with just the Docs service
+- [ ] **4a.** anyserver builds and runs standalone with just the Docs service — source browsing works over both gRPC and HTTP, godoc HTML browsable at `/docs/`
 - [ ] **4b.** vad builds with anyserver composition — all existing vad tests pass
 - [ ] **4c.** ffmpeg-proto composes cleanly — waveform generation works end-to-end
-- [ ] **4d.** Swagger UI shows all services, godoc HTML is browsable, source is viewable
+- [ ] **4d.** Swagger UI shows all services, source is browsable with proper Code/Media/Binary rendering
 
 ## Related Projects
 
@@ -149,4 +273,6 @@ RUN cd /anyserver && ./tools/gen.sh --inject /app && go build -o /server ./cmd/a
 - [godoc-gen](https://github.com/accretional/godoc-gen) — auto-generate godoc HTML from Go packages (CLI, static HTML)
 - [ffmpeg-proto](https://github.com/accretional/ffmpeg-proto) — FFmpeg as a gRPC service (MediaConverter: conversion, waveforms, SVG)
 - [audio-visualizer](https://github.com/accretional/audio-visualizer) — audio waveform visualization (same codebase as ffmpeg-proto)
+- [httprpc](https://github.com/accretional/httprpc) — HTTP response/request protos, server-driven UI, template-based HTTP↔gRPC bridging
+- [mime-proto](https://github.com/accretional/mime-proto) — MimeType protobuf definitions (used by Docs Media messages)
 - [vad](https://github.com/accretional/vad) — pyannote VAD via ONNX (first consumer of anyserver)
