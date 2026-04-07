@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+package openformat.v1;
+
+option go_package = "github.com/accretional/anyserver/proto/openformat/v1;openformatv1";
+
+enum DiscreteType {
+    DISCRETE_UNKNOWN=0;
+    application=1;
+    audio=2;
+    example=3;
+    font=4;
+    image=5;
+    model=6;
+    text=7;
+    video=8;
+}
+
+enum MultipartType {
+    MULTIPART_UNKNOWN=0;
+    message=1;
+    multipart=2;
+}
+
+message MimeParameter {
+    string parameter=1;
+    string value=2;
+}
+
+message MimeType {
+    oneof type {
+        DiscreteType discrete_media_type=1;
+        string other_discrete_type=2;
+        MultipartType multipart_type=3;
+    }
+    string sub_type=4;
+    repeated MimeParameter params=5;
+}

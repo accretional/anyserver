@@ -1,0 +1,8 @@
+.DS_Store
+/anyserver
+cmd/anyserver/source/
+cmd/anyserver/static/
+vendor/
+*.exe
+*.test
+*.out

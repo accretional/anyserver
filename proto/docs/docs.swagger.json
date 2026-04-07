@@ -1,0 +1,247 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "docs.proto",
+    "version": "version not set"
+  },
+  "tags": [
+    {
+      "name": "Docs"
+    }
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/source/{path}": {
+      "get": {
+        "summary": "Browse embedded source code. When path is a directory, streams Path entries.\nWhen path is a file, streams typed content chunks.",
+        "operationId": "Docs_Source",
+        "responses": {
+          "200": {
+            "description": "A successful response.(streaming responses)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "result": {
+                  "$ref": "#/definitions/docsSourceCode"
+                },
+                "error": {
+                  "$ref": "#/definitions/rpcStatus"
+                }
+              },
+              "title": "Stream result of docsSourceCode"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "path",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "pattern": ".+"
+          }
+        ],
+        "tags": [
+          "Docs"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "docsBinary": {
+      "type": "object",
+      "properties": {
+        "contents": {
+          "type": "string",
+          "format": "byte"
+        }
+      },
+      "description": "Opaque binary data (triggers download over HTTP)."
+    },
+    "docsCode": {
+      "type": "object",
+      "properties": {
+        "contents": {
+          "type": "string"
+        },
+        "filename": {
+          "type": "string"
+        }
+      },
+      "description": "Source code or text file chunk. Sequential chunks concatenate to full file."
+    },
+    "docsData": {
+      "type": "object",
+      "properties": {
+        "typeUrl": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        },
+        "fileName": {
+          "type": "string"
+        },
+        "more": {
+          "type": "boolean",
+          "title": "more chunks follow"
+        },
+        "contents": {
+          "type": "string",
+          "format": "byte"
+        }
+      },
+      "description": "Generic streamed data for large files or mixed content."
+    },
+    "docsMedia": {
+      "type": "object",
+      "properties": {
+        "contents": {
+          "type": "string",
+          "format": "byte"
+        },
+        "filename": {
+          "type": "string"
+        },
+        "mimeType": {
+          "$ref": "#/definitions/v1MimeType"
+        }
+      },
+      "description": "Media file chunk (image, audio, video, etc.)."
+    },
+    "docsPathEntry": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "isDir": {
+          "type": "boolean"
+        },
+        "size": {
+          "type": "string",
+          "format": "int64"
+        }
+      },
+      "description": "Directory listing entry."
+    },
+    "docsSourceCode": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "$ref": "#/definitions/docsPathEntry"
+        },
+        "code": {
+          "$ref": "#/definitions/docsCode"
+        },
+        "media": {
+          "$ref": "#/definitions/docsMedia"
+        },
+        "data": {
+          "$ref": "#/definitions/docsData"
+        },
+        "binary": {
+          "$ref": "#/definitions/docsBinary"
+        }
+      }
+    },
+    "protobufAny": {
+      "type": "object",
+      "properties": {
+        "@type": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": {}
+    },
+    "rpcStatus": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "message": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/protobufAny"
+          }
+        }
+      }
+    },
+    "v1DiscreteType": {
+      "type": "string",
+      "enum": [
+        "DISCRETE_UNKNOWN",
+        "application",
+        "audio",
+        "example",
+        "font",
+        "image",
+        "model",
+        "text",
+        "video"
+      ],
+      "default": "DISCRETE_UNKNOWN"
+    },
+    "v1MimeParameter": {
+      "type": "object",
+      "properties": {
+        "parameter": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        }
+      }
+    },
+    "v1MimeType": {
+      "type": "object",
+      "properties": {
+        "discreteMediaType": {
+          "$ref": "#/definitions/v1DiscreteType"
+        },
+        "otherDiscreteType": {
+          "type": "string"
+        },
+        "multipartType": {
+          "$ref": "#/definitions/v1MultipartType"
+        },
+        "subType": {
+          "type": "string"
+        },
+        "params": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1MimeParameter"
+          }
+        }
+      }
+    },
+    "v1MultipartType": {
+      "type": "string",
+      "enum": [
+        "MULTIPART_UNKNOWN",
+        "message",
+        "multipart"
+      ],
+      "default": "MULTIPART_UNKNOWN"
+    }
+  }
+}

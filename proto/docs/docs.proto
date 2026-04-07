@@ -1,0 +1,68 @@
+syntax = "proto3";
+
+package anyserver.docs;
+
+option go_package = "github.com/accretional/anyserver/proto/docs;docspb";
+
+import "google/api/annotations.proto";
+import "openformat/v1/mime.proto";
+
+service Docs {
+  // Browse embedded source code. When path is a directory, streams Path entries.
+  // When path is a file, streams typed content chunks.
+  rpc Source(SourceRequest) returns (stream SourceCode) {
+    option (google.api.http) = {
+      get: "/source/{path=**}"
+    };
+  }
+}
+
+message SourceRequest {
+  string path = 1;
+}
+
+message SourceCode {
+  oneof kind {
+    PathEntry path = 1;
+    Code code = 2;
+    Media media = 3;
+    Data data = 4;
+    Binary binary = 5;
+  }
+}
+
+// Directory listing entry.
+message PathEntry {
+  string name = 1;
+  bool is_dir = 2;
+  int64 size = 3;
+}
+
+// Source code or text file chunk. Sequential chunks concatenate to full file.
+message Code {
+  string contents = 1;
+  string filename = 2;
+}
+
+// Media file chunk (image, audio, video, etc.).
+message Media {
+  bytes contents = 1;
+  string filename = 2;
+  openformat.v1.MimeType mime_type = 3;
+}
+
+// Generic streamed data for large files or mixed content.
+message Data {
+  oneof kind {
+    string type_url = 1;
+    string text = 2;
+    string file_name = 3;
+    bool more = 4;  // more chunks follow
+  }
+  bytes contents = 5;
+}
+
+// Opaque binary data (triggers download over HTTP).
+message Binary {
+  bytes contents = 1;
+}
