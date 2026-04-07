@@ -30,6 +30,9 @@ type Config struct {
 	// StaticFS is the filesystem containing static assets (css, etc).
 	StaticFS fs.FS
 
+	// SwaggerJSON is the raw OpenAPI spec JSON (optional).
+	SwaggerJSON []byte
+
 	// ReadmeHTML is pre-rendered README content for the index page.
 	ReadmeHTML template.HTML
 
@@ -49,11 +52,38 @@ func Run(cfg Config) error {
 
 	httpMux := http.NewServeMux()
 
-	// Mount source browsing and docs
+	// Mount source browsing
 	docsHandler := docs.HTTPHandler(cfg.SourceFS, cfg.DocsFS, cfg.RepoName, cfg.ReadmeHTML)
 	httpMux.Handle("/source/", docsHandler)
+
+	// Mount docs (godoc HTML or placeholder)
 	if cfg.DocsFS != nil {
 		httpMux.Handle("/docs/", docsHandler)
+	} else {
+		httpMux.HandleFunc("/docs/", func(w http.ResponseWriter, r *http.Request) {
+			servePlaceholder(w, cfg.RepoName, "Documentation",
+				"Documentation has not been generated yet. Run <code>godoc-gen</code> to generate.")
+		})
+	}
+
+	// Mount API / swagger
+	if len(cfg.SwaggerJSON) > 0 {
+		httpMux.HandleFunc("/api/swagger.json", func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.Write(cfg.SwaggerJSON)
+		})
+		httpMux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/api/" {
+				http.NotFound(w, r)
+				return
+			}
+			serveSwaggerPage(w, cfg.RepoName)
+		})
+	} else {
+		httpMux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
+			servePlaceholder(w, cfg.RepoName, "API",
+				"No OpenAPI spec available. Run <code>tools/gen.sh</code> to generate.")
+		})
 	}
 
 	// Serve static assets
@@ -109,6 +139,22 @@ func serveIndex(w http.ResponseWriter, cfg Config) {
 	})
 }
 
+func servePlaceholder(w http.ResponseWriter, repoName, section, message string) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	tmpl := template.Must(template.New("placeholder").Parse(placeholderTemplate))
+	tmpl.Execute(w, struct {
+		RepoName string
+		Section  string
+		Message  template.HTML
+	}{repoName, section, template.HTML(message)})
+}
+
+func serveSwaggerPage(w http.ResponseWriter, repoName string) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	tmpl := template.Must(template.New("swagger").Parse(swaggerTemplate))
+	tmpl.Execute(w, struct{ RepoName string }{repoName})
+}
+
 const indexTemplate = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -132,7 +178,7 @@ const indexTemplate = `<!DOCTYPE html>
     <div class="index-links">
       <a href="/source/">Browse Source</a>
       <a href="/docs/">Documentation</a>
-      <a href="/api/">API (Swagger)</a>
+      <a href="/api/">API (OpenAPI)</a>
     </div>
   </section>
   {{if .ReadmeHTML}}
@@ -141,6 +187,71 @@ const indexTemplate = `<!DOCTYPE html>
     <div class="readme-content">{{.ReadmeHTML}}</div>
   </section>
   {{end}}
+</main>
+</body>
+</html>`
+
+const placeholderTemplate = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{.Section}} - {{.RepoName}}</title>
+<link rel="stylesheet" href="/static/docs.css">
+</head>
+<body>
+<header class="header">
+  <a href="/" class="header-title">{{.RepoName}}</a>
+  <nav class="header-nav">
+    <a href="/source/">Source</a>
+    <a href="/docs/">Docs</a>
+    <a href="/api/">API</a>
+  </nav>
+</header>
+<main class="content">
+  <section class="index-section">
+    <h2>{{.Section}}</h2>
+    <p>{{.Message}}</p>
+  </section>
+</main>
+</body>
+</html>`
+
+const swaggerTemplate = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>API - {{.RepoName}}</title>
+<link rel="stylesheet" href="/static/docs.css">
+</head>
+<body>
+<header class="header">
+  <a href="/" class="header-title">{{.RepoName}}</a>
+  <nav class="header-nav">
+    <a href="/source/">Source</a>
+    <a href="/docs/">Docs</a>
+    <a href="/api/">API</a>
+  </nav>
+</header>
+<main class="content">
+  <section class="index-section">
+    <h2>API</h2>
+    <p>OpenAPI specification: <a href="/api/swagger.json">/api/swagger.json</a></p>
+    <h3>Docs Service</h3>
+    <table class="file-list">
+      <thead><tr><th>Method</th><th>Path</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>GET</td>
+          <td><code>/source/{path}</code></td>
+          <td>Browse embedded source. Returns directory listings, code, media, or binary.</td>
+        </tr>
+      </tbody>
+    </table>
+    <h3>gRPC</h3>
+    <p>gRPC reflection is enabled. Connect with any gRPC client on the same port.</p>
+  </section>
 </main>
 </body>
 </html>`

@@ -67,8 +67,8 @@ func Run(cfg Config) error {
 		httpMux = cfg.HTTPMux
 	}
 
-	// Gateway routes under /api/ prefix
-	httpMux.Handle("/api/", http.StripPrefix("/api", gwMux))
+	// Gateway routes under /gateway/ prefix (raw grpc-gateway proxy)
+	httpMux.Handle("/gateway/", http.StripPrefix("/gateway", gwMux))
 
 	// Dual handler: route gRPC vs HTTP based on content-type
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

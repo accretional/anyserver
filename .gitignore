@@ -2,6 +2,7 @@
 /anyserver
 cmd/anyserver/source/
 cmd/anyserver/static/
+cmd/anyserver/swagger.json
 vendor/
 *.exe
 *.test

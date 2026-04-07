@@ -34,6 +34,9 @@ rsync -a \
 echo "Copying static assets..."
 cp static/*.css "$EMBED_STATIC/"
 
+echo "Copying swagger spec..."
+cp proto/docs/docs.swagger.json cmd/anyserver/swagger.json
+
 # --- Build ---
 
 echo "Building anyserver..."
