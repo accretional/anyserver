@@ -1,3 +1,5 @@
+// Package docs implements the Docs gRPC service, which provides streaming
+// source code browsing backed by an embedded filesystem.
 package docs
 
 import (

@@ -1,3 +1,5 @@
+// Package server implements a dual gRPC/HTTP server on a single port via h2c,
+// with grpc-gateway proxy and request counting middleware.
 package server
 
 import (

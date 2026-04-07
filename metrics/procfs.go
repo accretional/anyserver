@@ -1,3 +1,5 @@
+// Package metrics provides HTTP request counting middleware and Go runtime
+// statistics collection for server observability.
 package metrics
 
 import (

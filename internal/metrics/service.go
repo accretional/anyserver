@@ -1,3 +1,5 @@
+// Package metrics implements the Metrics gRPC service, providing server
+// introspection including runtime stats, request counters, and build/test/boot logs.
 package metrics
 
 import (

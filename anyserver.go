@@ -1,3 +1,5 @@
+// Package anyserver provides a composable gRPC+HTTP server framework with
+// built-in source browsing, API documentation, and server metrics.
 package anyserver
 
 import (
