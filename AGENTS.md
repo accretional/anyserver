@@ -20,6 +20,7 @@ All validation goes through these scripts. Never run go test/build ad-hoc as fin
 ## Build-time tools
 
 - `cmd/swaggerhtml/` — merges OpenAPI specs into static HTML API reference (invoked by build.sh)
+- `cmd/godochtml/` — generates package documentation HTML from Go source using `go/doc` (invoked by build.sh)
 - `cmd/logpb/` — captures stdout as BuildLog/TestLog protocol buffer binary (invoked by build.sh and test.sh)
 
 ## Important

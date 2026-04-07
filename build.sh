@@ -40,6 +40,9 @@ cp proto/docs/docs.swagger.json cmd/anyserver/swagger.json
 echo "Generating API reference HTML..."
 go run ./cmd/swaggerhtml/ proto/docs/docs.swagger.json proto/metrics/metrics.swagger.json > cmd/anyserver/api.html
 
+echo "Generating package documentation HTML..."
+go run ./cmd/godochtml/ -module github.com/accretional/anyserver . > cmd/anyserver/docs.html
+
 # --- Build logpb tool (for capturing build/test output as binarypb) ---
 
 echo "Building logpb tool..."

@@ -154,10 +154,14 @@ message BootEvent { BootStatus status = 1; google.protobuf.Timestamp timestamp =
 message BootLog { repeated BootEvent events = 1; }
 ```
 
-- **Static**: hostname, port, Go version, OS/arch, embedded build log, test log, boot events
-- **Active**: goroutines, heap alloc, sys memory, GC cycles (TODO: procfs on Linux — CPU time, open FDs, VmRSS, threads)
-- **Lifetime**: boot time, uptime, total requests, requests by path, requests by status code
-- **Historical**: time-series buckets (TODO)
+| RPC | Description |
+|-----|-------------|
+| `Static` | Build-time metadata: hostname, port, Go version, OS/arch, build/test/boot logs |
+| `Active` | Live runtime state: goroutines, heap, sys memory, GC cycles |
+| `Lifetime` | Cumulative counters: uptime, total requests, requests by path/status |
+| `Historical` | Time-series data (TODO: implement time-series buckets) |
+
+- **Active TODO**: procfs on Linux — CPU time, open FDs, VmRSS, threads (fall back to runtime stats on non-Linux)
 
 Build/test output is captured during `build.sh`/`test.sh` via `cmd/logpb` and serialized as protocol buffer binary, then embedded in the binary via `go:embed`.
 
@@ -169,6 +173,16 @@ Pure HTML+CSS page (via Go `html/template`) showing:
 - Request counters by path and status code
 - Boot event log
 - Embedded build and test output
+
+## Documentation Page (`/docs/`)
+
+Package documentation is generated at build time by `cmd/godochtml`, which:
+- Walks the source tree using `go/parser` + `go/doc` (standard library, no external dependencies)
+- Extracts exported types, functions, constants, variables, and their doc comments
+- Renders package index with synopses, then per-package sections with type declarations and method signatures
+- Outputs an HTML fragment that anyserver wraps in page chrome at startup
+
+No JavaScript. Pure HTML+CSS, generated once during `build.sh`.
 
 ## API Reference Page (`/api/`)
 
@@ -186,7 +200,7 @@ No JavaScript. The raw spec is also available at `/api/swagger.json`.
 |------|-------------|
 | `/` | Index page with navigation links and README |
 | `/source/` | Source code browser with directory listing, code view, media serving |
-| `/docs/` | Documentation (godoc HTML when generated, placeholder otherwise) |
+| `/docs/` | Package documentation (generated at build time from Go source via `go/doc` + `go/parser`) |
 | `/api/` | API reference (static HTML rendered from OpenAPI specs at build time) |
 | `/api/swagger.json` | Raw OpenAPI spec JSON |
 | `/server/` | Server info: runtime stats, request counters, boot/build/test logs |
@@ -335,8 +349,9 @@ If not provided, responses default to JSON serialization.
 - [x] Add `cmd/logpb` tool to capture build/test stdout as BuildLog/TestLog binarypb
 - [x] Add `cmd/swaggerhtml` tool: merges OpenAPI specs into static HTML API reference page at build time
 - [x] Render `/api/` from pre-generated HTML (no JavaScript, no Swagger UI)
+- [x] Add `cmd/godochtml` tool: generates package documentation from Go source using `go/doc` + `go/parser`
+- [x] Render `/docs/` from pre-generated HTML (no JavaScript, no external tools)
 - [ ] **1d.** Build full HTTP proxy layer: `HTTP.textproto` mechanism based on httprpc's `HTTPResponse`/`HTTPResponseChunk`
-- [ ] **1e.** Serve godoc-gen output as static HTML over `/docs/`, with navigation linking to `/source/` paths
 - [ ] **1f.** Add `tools/gen.sh` support for auto-generating service registration by scanning `*_grpc.pb.go`
 
 ### Phase 2: Service composition / linking

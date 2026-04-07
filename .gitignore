@@ -1,12 +1,14 @@
 .DS_Store
 /anyserver
 /logpb
+/godochtml
 cmd/anyserver/source/
 cmd/anyserver/static/
 cmd/anyserver/swagger.json
 cmd/anyserver/build.binarypb
 cmd/anyserver/tests.binarypb
 cmd/anyserver/api.html
+cmd/anyserver/docs.html
 vendor/
 *.exe
 *.test

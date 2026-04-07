@@ -40,6 +40,9 @@ type Config struct {
 	// APIHTML is pre-generated API reference HTML fragment (from swaggerhtml tool).
 	APIHTML []byte
 
+	// DocsHTML is pre-generated package documentation HTML fragment (from godochtml tool).
+	DocsHTML []byte
+
 	// BuildLogPB is the serialized BuildLog proto (optional, from build.binarypb).
 	BuildLogPB []byte
 
@@ -73,8 +76,18 @@ func Run(cfg Config) error {
 	docsHandler := docs.HTTPHandler(cfg.SourceFS, cfg.DocsFS, cfg.RepoName, cfg.ReadmeHTML)
 	httpMux.Handle("/source/", docsHandler)
 
-	// Mount docs (godoc HTML or placeholder)
-	if cfg.DocsFS != nil {
+	// Mount docs (pre-generated HTML or godoc FS or placeholder)
+	if len(cfg.DocsHTML) > 0 {
+		docsPage := renderDocsPage(cfg.RepoName, template.HTML(cfg.DocsHTML))
+		httpMux.HandleFunc("/docs/", func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/docs/" {
+				http.NotFound(w, r)
+				return
+			}
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			w.Write(docsPage)
+		})
+	} else if cfg.DocsFS != nil {
 		httpMux.Handle("/docs/", docsHandler)
 	} else {
 		httpMux.HandleFunc("/docs/", func(w http.ResponseWriter, r *http.Request) {
@@ -186,6 +199,16 @@ func renderAPIPage(repoName string, content template.HTML) []byte {
 	return []byte(buf.String())
 }
 
+func renderDocsPage(repoName string, content template.HTML) []byte {
+	tmpl := template.Must(template.New("docs").Parse(docsPageTemplate))
+	var buf strings.Builder
+	tmpl.Execute(&buf, struct {
+		RepoName string
+		Content  template.HTML
+	}{repoName, content})
+	return []byte(buf.String())
+}
+
 const navHTML = `<header class="header">
   <a href="/" class="header-title">{{.RepoName}}</a>
   <nav class="header-nav">
@@ -241,6 +264,22 @@ const placeholderTemplate = `<!DOCTYPE html>
     <h2>{{.Section}}</h2>
     <p>{{.Message}}</p>
   </section>
+</main>
+</body>
+</html>`
+
+const docsPageTemplate = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Docs - {{.RepoName}}</title>
+<link rel="stylesheet" href="/static/docs.css">
+</head>
+<body>
+` + navHTML + `
+<main class="content">
+{{.Content}}
 </main>
 </body>
 </html>`

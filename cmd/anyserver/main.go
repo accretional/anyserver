@@ -32,6 +32,9 @@ var testLogPB []byte
 //go:embed api.html
 var apiHTML []byte
 
+//go:embed docs.html
+var docsHTML []byte
+
 func main() {
 	port := flag.Int("port", 8080, "server port")
 	repoName := flag.String("name", "anyserver", "repository/project name")
@@ -64,6 +67,7 @@ func main() {
 		StaticFS:    staticSub,
 		SwaggerJSON: swaggerJSON,
 		APIHTML:     apiHTML,
+		DocsHTML:    docsHTML,
 		BuildLogPB:  buildLogPB,
 		TestLogPB:   testLogPB,
 		ReadmeHTML:  readmeHTML,

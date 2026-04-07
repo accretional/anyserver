@@ -15,6 +15,7 @@ Quick `go build ./...` or `go vet ./...` during development to catch compile err
 
 **Build-time tools:**
 - `cmd/swaggerhtml/` — merges OpenAPI specs into static HTML for the `/api/` page (run by build.sh)
+- `cmd/godochtml/` — generates package documentation HTML from Go source using `go/doc` (run by build.sh)
 - `cmd/logpb/` — serializes stdout to BuildLog/TestLog binarypb (run by build.sh and test.sh)
 
 **README is a plan/roadmap.** Do NOT remove, rewrite, or condense sections without explicit approval. When adding new work, update existing sections — do not reorganize or trim.
