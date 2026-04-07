@@ -11,7 +11,11 @@ TEST_PORT=18090
 
 echo "=== Pre-run cleanup ==="
 for p in $PORT $TEST_PORT; do
-    lsof -ti ":$p" 2>/dev/null | xargs -r kill -9 2>/dev/null || true
+    PIDS=$(lsof -ti ":$p" 2>/dev/null || true)
+    if [ -n "$PIDS" ]; then
+        echo "killing processes on port $p: $PIDS"
+        echo "$PIDS" | xargs kill -9 2>/dev/null || true
+    fi
 done
 sleep 1
 
@@ -21,7 +25,10 @@ cleanup() {
     echo ""
     echo "=== Cleaning up ==="
     for p in $PORT $TEST_PORT; do
-        lsof -ti ":$p" 2>/dev/null | xargs -r kill -9 2>/dev/null || true
+        PIDS=$(lsof -ti ":$p" 2>/dev/null || true)
+        if [ -n "$PIDS" ]; then
+            echo "$PIDS" | xargs kill -9 2>/dev/null || true
+        fi
     done
     rm -f ./anyserver
 }

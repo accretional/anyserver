@@ -12,7 +12,10 @@ TEST_LOG="/tmp/anyserver_test.log"
 cleanup() {
     echo ""
     echo "=== Cleaning up ==="
-    lsof -ti ":$TEST_PORT" 2>/dev/null | xargs -r kill -9 2>/dev/null || true
+    PIDS=$(lsof -ti ":$TEST_PORT" 2>/dev/null || true)
+    if [ -n "$PIDS" ]; then
+        echo "$PIDS" | xargs kill -9 2>/dev/null || true
+    fi
     rm -f ./anyserver
 }
 trap cleanup EXIT
@@ -31,7 +34,7 @@ do_test() {
     echo "--- Pre-run cleanup ---"
     if lsof -ti ":$TEST_PORT" 2>/dev/null; then
         echo "killing existing process on port $TEST_PORT"
-        lsof -ti ":$TEST_PORT" | xargs -r kill -9 2>/dev/null || true
+        lsof -ti ":$TEST_PORT" | xargs kill -9 2>/dev/null || true
     else
         echo "port $TEST_PORT is free"
     fi
