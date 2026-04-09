@@ -113,7 +113,7 @@ do_test() {
     check_status "http://localhost:$TEST_PORT/api/swagger.json" "200" "GET /api/swagger.json"
     check_status "http://localhost:$TEST_PORT/static/docs.css" "200" "GET /static/docs.css"
     check_status "http://localhost:$TEST_PORT/server/" "200" "GET /server/"
-    check_status "http://localhost:$TEST_PORT/wormhole/" "200" "GET /wormhole/"
+    check_status "http://localhost:$TEST_PORT/wormhole/requests?tail=1" "200" "GET /wormhole/requests?tail=1"
     check_status "http://localhost:$TEST_PORT/nonexistent" "404" "GET /nonexistent"
 
     # Kill the smoke test server so tee can finish

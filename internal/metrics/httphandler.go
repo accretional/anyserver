@@ -10,7 +10,7 @@ import (
 )
 
 // HTTPHandler returns an http.Handler for the /server/ page.
-func (s *Service) HTTPHandler(repoName string) http.Handler {
+func (s *Service) HTTPHandler(repoName string, hasCommand bool) http.Handler {
 	tmpl := template.Must(template.New("server").Parse(serverTemplate))
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -85,6 +85,7 @@ func (s *Service) HTTPHandler(repoName string) http.Handler {
 			Statuses      []statusCount
 			BuildStdout   string
 			TestStdout    string
+			HasCommand    bool
 		}{
 			RepoName:      repoName,
 			Hostname:      staticResp.Hostname,
@@ -103,6 +104,7 @@ func (s *Service) HTTPHandler(repoName string) http.Handler {
 			Statuses:      statuses,
 			BuildStdout:   buildStdout,
 			TestStdout:    testStdout,
+			HasCommand:    hasCommand,
 		})
 	})
 }
@@ -127,6 +129,83 @@ const serverTemplate = `<!DOCTYPE html>
 </header>
 <main class="content">
 
+{{if .HasCommand}}
+<section class="index-section">
+  <h2>Command</h2>
+  <div class="command-auth">
+    <input type="text" id="cmd-token" placeholder="Paste command token" autocomplete="off" spellcheck="false"
+           style="font-family:monospace; padding:0.5rem; width:20rem; border:1px solid #d0d8f0; border-radius:4px;">
+    <button id="cmd-btn" onclick="doAuth()"
+            style="padding:0.5rem 1rem; background:#1a1a2e; color:#fff; border:none; border-radius:4px; cursor:pointer; margin-left:0.5rem;">
+      Connect</button>
+    <span id="cmd-status" style="margin-left:0.75rem; font-size:0.9rem;"></span>
+  </div>
+  <div id="cmd-log" class="wormhole-tail" style="margin-top:0.75rem; display:none;">
+    <pre id="cmd-output"></pre>
+  </div>
+  <script>
+  function doAuth() {
+    var token = document.getElementById('cmd-token').value.trim();
+    if (!token) return;
+    var status = document.getElementById('cmd-status');
+    var btn = document.getElementById('cmd-btn');
+    var logDiv = document.getElementById('cmd-log');
+    var output = document.getElementById('cmd-output');
+    btn.disabled = true;
+    status.textContent = 'connecting...';
+    var loc = window.location;
+    var wsUrl = (loc.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + loc.host + '/wormhole/command';
+    var ws = new WebSocket(wsUrl);
+    ws.onopen = function() { ws.send(JSON.stringify({type:'auth', token:token})); };
+    ws.onmessage = function(e) {
+      var msg = JSON.parse(e.data);
+      if (msg.type === 'auth_result') {
+        if (msg.ok) {
+          status.textContent = 'authenticated';
+          status.style.color = '#28a745';
+          logDiv.style.display = 'block';
+          document.getElementById('cmd-token').disabled = true;
+        } else {
+          status.textContent = 'auth failed';
+          status.style.color = '#d73a49';
+          btn.disabled = false;
+        }
+      } else if (msg.type === 'ping') {
+        ws.send(JSON.stringify({type:'pong'}));
+      } else if (msg.type === 'event') {
+        output.textContent += msg.payload + '\n';
+        output.scrollTop = output.scrollHeight;
+      }
+    };
+    ws.onclose = function() {
+      if (status.textContent !== 'auth failed') {
+        status.textContent = 'disconnected';
+        status.style.color = '#d73a49';
+      }
+      btn.disabled = false;
+    };
+    ws.onerror = function() {
+      status.textContent = 'connection error';
+      status.style.color = '#d73a49';
+      btn.disabled = false;
+    };
+    window._cmdWs = ws;
+  }
+  </script>
+</section>
+{{end}}
+
+<div class="server-streams">
+  <div class="stream-col">
+    <h2>Requests</h2>
+    <iframe src="/wormhole/requests" class="stream-frame"></iframe>
+  </div>
+  <div class="stream-col">
+    <h2>stdout / stderr</h2>
+    <iframe src="/wormhole/?kinds=stdout,stderr" class="stream-frame"></iframe>
+  </div>
+</div>
+
 <section class="index-section">
   <h2>Server Info</h2>
   <table class="file-list">
@@ -136,44 +215,26 @@ const serverTemplate = `<!DOCTYPE html>
       <tr><td>Go Version</td><td>{{.GoVersion}}</td></tr>
       <tr><td>OS / Arch</td><td>{{.OS}} / {{.Arch}}</td></tr>
       <tr><td>Uptime</td><td>{{.UptimeSeconds}}s</td></tr>
-    </tbody>
-  </table>
-</section>
-
-<section class="index-section">
-  <h2>Runtime (Active)</h2>
-  <table class="file-list">
-    <tbody>
       <tr><td>Goroutines</td><td>{{.Goroutines}}</td></tr>
-      <tr><td>Heap Alloc</td><td>{{.HeapAllocMB}} MB</td></tr>
-      <tr><td>Sys Memory</td><td>{{.SysMB}} MB</td></tr>
+      <tr><td>Heap</td><td>{{.HeapAllocMB}} MB</td></tr>
+      <tr><td>Sys</td><td>{{.SysMB}} MB</td></tr>
       <tr><td>GC Cycles</td><td>{{.NumGC}}</td></tr>
+      <tr><td>Total Requests</td><td>{{.TotalRequests}}</td></tr>
     </tbody>
   </table>
 </section>
 
+{{if .Statuses}}
 <section class="index-section">
-  <h2>Requests (Lifetime)</h2>
-  <p>Total: {{.TotalRequests}}</p>
-  {{if .Statuses}}
-  <h3>By Status Code</h3>
+  <h2>Requests by Status</h2>
   <table class="file-list">
     <thead><tr><th>Status</th><th>Count</th></tr></thead>
     <tbody>
     {{range .Statuses}}<tr><td>{{.Code}}</td><td>{{.Count}}</td></tr>{{end}}
     </tbody>
   </table>
-  {{end}}
-  {{if .Paths}}
-  <h3>By Path (top)</h3>
-  <table class="file-list">
-    <thead><tr><th>Path</th><th>Count</th></tr></thead>
-    <tbody>
-    {{range .Paths}}<tr><td>{{.Path}}</td><td>{{.Count}}</td></tr>{{end}}
-    </tbody>
-  </table>
-  {{end}}
 </section>
+{{end}}
 
 <section class="index-section">
   <h2>Boot Log</h2>

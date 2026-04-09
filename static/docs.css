@@ -293,7 +293,7 @@ h2 {
     color: #444;
 }
 
-/* Wormhole */
+/* Wormhole / Streaming */
 .wormhole-tail pre {
     background: #1a1a2e;
     color: #e0e0e0;
@@ -304,4 +304,34 @@ h2 {
     line-height: 1.4;
     max-height: 300px;
     overflow-y: auto;
+}
+
+.server-streams {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.stream-col {
+    flex: 1;
+    min-width: 0;
+}
+
+.stream-col h2 {
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
+    padding-bottom: 0.25rem;
+    border-bottom: 2px solid #1a1a2e;
+}
+
+.stream-frame {
+    width: 100%;
+    height: 300px;
+    border: 1px solid #d0d8f0;
+    border-radius: 4px;
+    background: #1a1a2e;
+}
+
+@media (max-width: 768px) {
+    .server-streams { flex-direction: column; }
 }

@@ -76,8 +76,6 @@ func NewCommandWormhole(cfg CommandConfig) (*CommandWormhole, error) {
 		wh:       New(KindCommand, "Authenticated command channel"),
 	}
 
-	fmt.Fprintf(os.Stderr, "COMMAND TOKEN: %s\n", token)
-
 	// Start auth timeout
 	time.AfterFunc(cfg.AuthTimeout, func() {
 		cw.mu.Lock()

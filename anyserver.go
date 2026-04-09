@@ -134,7 +134,8 @@ func Run(cfg Config) error {
 	}
 
 	// Mount server/metrics page
-	httpMux.Handle("/server/", metricsSvc.HTTPHandler(cfg.RepoName))
+	hasCommand := cfg.CommandWormhole != nil && cfg.CommandWormhole.Enabled
+	httpMux.Handle("/server/", metricsSvc.HTTPHandler(cfg.RepoName, hasCommand))
 
 	// Serve static assets
 	if cfg.StaticFS != nil {
@@ -307,8 +308,6 @@ const navHTML = `<header class="header">
     <a href="/source/">Source</a>
     <a href="/docs/">Docs</a>
     <a href="/api/">API</a>
-    <a href="/server/">Server</a>
-    <a href="/wormhole/">Wormhole</a>
   </nav>
 </header>`
 

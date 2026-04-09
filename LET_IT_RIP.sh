@@ -93,7 +93,7 @@ check_status "http://localhost:$PORT/api/" "200" "GET /api/"
 check_status "http://localhost:$PORT/api/swagger.json" "200" "GET /api/swagger.json"
 check_status "http://localhost:$PORT/static/docs.css" "200" "GET /static/docs.css"
 check_status "http://localhost:$PORT/server/" "200" "GET /server/"
-check_status "http://localhost:$PORT/wormhole/" "200" "GET /wormhole/"
+check_status "http://localhost:$PORT/wormhole/requests?tail=1" "200" "GET /wormhole/requests?tail=1"
 check_status "http://localhost:$PORT/nonexistent" "404" "GET /nonexistent"
 
 echo ""
