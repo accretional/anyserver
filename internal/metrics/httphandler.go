@@ -10,7 +10,7 @@ import (
 )
 
 // HTTPHandler returns an http.Handler for the /server/ page.
-func (s *Service) HTTPHandler(repoName string, hasCommand bool) http.Handler {
+func (s *Service) HTTPHandler(repoName string) http.Handler {
 	tmpl := template.Must(template.New("server").Parse(serverTemplate))
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -85,7 +85,6 @@ func (s *Service) HTTPHandler(repoName string, hasCommand bool) http.Handler {
 			Statuses      []statusCount
 			BuildStdout   string
 			TestStdout    string
-			HasCommand    bool
 		}{
 			RepoName:      repoName,
 			Hostname:      staticResp.Hostname,
@@ -104,8 +103,7 @@ func (s *Service) HTTPHandler(repoName string, hasCommand bool) http.Handler {
 			Statuses:      statuses,
 			BuildStdout:   buildStdout,
 			TestStdout:    testStdout,
-			HasCommand:    hasCommand,
-		})
+})
 	})
 }
 
@@ -116,6 +114,19 @@ const serverTemplate = `<!DOCTYPE html>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Server - {{.RepoName}}</title>
 <link rel="stylesheet" href="/static/docs.css">
+<style>
+html, body { height:100%; }
+body { display:flex; flex-direction:column; }
+.header { flex-shrink:0; }
+.server-body { flex:1; overflow-y:auto; padding-bottom:1rem; }
+.stream-pane { width:100%; height:300px; border:1px solid #d0d8f0; border-radius:4px; background:#1a1a2e; }
+.command-footer { flex-shrink:0; border-top:2px solid #1a1a2e; background:#0d0d1a; }
+.command-footer iframe { width:100%; height:220px; border:none; }
+.site-footer { flex-shrink:0; height:1.5rem; background:#000; color:#888; border-top:1px solid #333; display:flex; align-items:center; justify-content:space-between; padding:0 1rem; font-size:0.7rem; }
+.site-footer a { color:#666; text-decoration:none; margin-left:0.75rem; }
+.site-footer a:hover { color:#aaa; }
+.footer-links { display:flex; gap:0; }
+</style>
 </head>
 <body>
 <header class="header">
@@ -127,82 +138,22 @@ const serverTemplate = `<!DOCTYPE html>
     <a href="/server/">Server</a>
   </nav>
 </header>
-<main class="content">
 
-{{if .HasCommand}}
-<section class="index-section">
-  <h2>Command</h2>
-  <div class="command-auth">
-    <input type="text" id="cmd-token" placeholder="Paste command token" autocomplete="off" spellcheck="false"
-           style="font-family:monospace; padding:0.5rem; width:20rem; border:1px solid #d0d8f0; border-radius:4px;">
-    <button id="cmd-btn" onclick="doAuth()"
-            style="padding:0.5rem 1rem; background:#1a1a2e; color:#fff; border:none; border-radius:4px; cursor:pointer; margin-left:0.5rem;">
-      Connect</button>
-    <span id="cmd-status" style="margin-left:0.75rem; font-size:0.9rem;"></span>
-  </div>
-  <div id="cmd-log" class="wormhole-tail" style="margin-top:0.75rem; display:none;">
-    <pre id="cmd-output"></pre>
-  </div>
-  <script>
-  function doAuth() {
-    var token = document.getElementById('cmd-token').value.trim();
-    if (!token) return;
-    var status = document.getElementById('cmd-status');
-    var btn = document.getElementById('cmd-btn');
-    var logDiv = document.getElementById('cmd-log');
-    var output = document.getElementById('cmd-output');
-    btn.disabled = true;
-    status.textContent = 'connecting...';
-    var loc = window.location;
-    var wsUrl = (loc.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + loc.host + '/wormhole/command';
-    var ws = new WebSocket(wsUrl);
-    ws.onopen = function() { ws.send(JSON.stringify({type:'auth', token:token})); };
-    ws.onmessage = function(e) {
-      var msg = JSON.parse(e.data);
-      if (msg.type === 'auth_result') {
-        if (msg.ok) {
-          status.textContent = 'authenticated';
-          status.style.color = '#28a745';
-          logDiv.style.display = 'block';
-          document.getElementById('cmd-token').disabled = true;
-        } else {
-          status.textContent = 'auth failed';
-          status.style.color = '#d73a49';
-          btn.disabled = false;
-        }
-      } else if (msg.type === 'ping') {
-        ws.send(JSON.stringify({type:'pong'}));
-      } else if (msg.type === 'event') {
-        output.textContent += msg.payload + '\n';
-        output.scrollTop = output.scrollHeight;
-      }
-    };
-    ws.onclose = function() {
-      if (status.textContent !== 'auth failed') {
-        status.textContent = 'disconnected';
-        status.style.color = '#d73a49';
-      }
-      btn.disabled = false;
-    };
-    ws.onerror = function() {
-      status.textContent = 'connection error';
-      status.style.color = '#d73a49';
-      btn.disabled = false;
-    };
-    window._cmdWs = ws;
-  }
-  </script>
-</section>
-{{end}}
+<div class="server-body">
+<main class="content">
 
 <div class="server-streams">
   <div class="stream-col">
     <h2>Requests</h2>
-    <iframe src="/wormhole/requests" class="stream-frame"></iframe>
+    <iframe src="/wormhole/requests/pane" class="stream-pane"></iframe>
   </div>
   <div class="stream-col">
-    <h2>stdout / stderr</h2>
-    <iframe src="/wormhole/?kinds=stdout,stderr" class="stream-frame"></iframe>
+    <h2>stdout</h2>
+    <iframe src="/wormhole/stdout/pane" class="stream-pane"></iframe>
+  </div>
+  <div class="stream-col">
+    <h2>stderr</h2>
+    <iframe src="/wormhole/stderr/pane" class="stream-pane"></iframe>
   </div>
 </div>
 
@@ -258,5 +209,27 @@ const serverTemplate = `<!DOCTYPE html>
 </section>
 
 </main>
+</div>
+
+<div id="command-footer" class="command-footer" style="display:none;">
+  <iframe src="/wormhole/command/pane"></iframe>
+</div>
+<footer class="site-footer">
+  <span>{{.RepoName}}</span>
+  <span class="footer-links">
+    <a href="/docs/">Docs</a>
+    <a href="/api/">API</a>
+    <a href="#">Privacy</a>
+    <a href="#">Terms</a>
+  </span>
+</footer>
+<script>
+window.addEventListener('message', function(e) {
+  if (e.data && e.data.type === 'command-pane') {
+    document.getElementById('command-footer').style.display = e.data.visible ? '' : 'none';
+  }
+});
+</script>
+
 </body>
 </html>`

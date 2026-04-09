@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -54,7 +55,7 @@ func (rc *RequestCounter) Wrap(next http.Handler) http.Handler {
 		rc.byStatus[sw.status].Add(1)
 		rc.mu.Unlock()
 
-		if rc.stream != nil {
+		if rc.stream != nil && !strings.HasPrefix(r.URL.Path, "/wormhole/") {
 			fmt.Fprintf(rc.stream, "%s %s %d %s\n",
 				r.Method, r.URL.Path, sw.status, time.Since(start).Truncate(time.Microsecond))
 		}

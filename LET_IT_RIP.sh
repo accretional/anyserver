@@ -87,7 +87,8 @@ check_status() {
 }
 
 check_status "http://localhost:$PORT/" "200" "GET /"
-check_status "http://localhost:$PORT/source/" "200" "GET /source/"
+check_status "http://localhost:$PORT/source/" "302" "GET /source/ (redirects to /)"
+check_status "http://localhost:$PORT/source/tree.json" "200" "GET /source/tree.json"
 check_status "http://localhost:$PORT/docs/" "200" "GET /docs/"
 check_status "http://localhost:$PORT/api/" "200" "GET /api/"
 check_status "http://localhost:$PORT/api/swagger.json" "200" "GET /api/swagger.json"

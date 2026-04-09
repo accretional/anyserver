@@ -107,7 +107,8 @@ do_test() {
     }
 
     check_status "http://localhost:$TEST_PORT/" "200" "GET /"
-    check_status "http://localhost:$TEST_PORT/source/" "200" "GET /source/"
+    check_status "http://localhost:$TEST_PORT/source/" "302" "GET /source/ (redirects to /)"
+    check_status "http://localhost:$TEST_PORT/source/tree.json" "200" "GET /source/tree.json"
     check_status "http://localhost:$TEST_PORT/docs/" "200" "GET /docs/"
     check_status "http://localhost:$TEST_PORT/api/" "200" "GET /api/"
     check_status "http://localhost:$TEST_PORT/api/swagger.json" "200" "GET /api/swagger.json"
