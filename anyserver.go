@@ -4,8 +4,10 @@ package anyserver
 
 import (
 	"context"
+	"fmt"
 	"html/template"
 	"io/fs"
+	"log"
 	"net/http"
 	"strings"
 
@@ -67,6 +69,10 @@ type Config struct {
 	// Wormholes is the registry of named streams. If set, a /wormhole/
 	// endpoint is mounted and the requests wormhole is created automatically.
 	Wormholes *wormhole.Registry
+
+	// CommandWormhole configures the secure command channel. If nil or
+	// Enabled is false, no command wormhole is created and boot does not pause.
+	CommandWormhole *wormhole.CommandConfig
 }
 
 // Run starts the anyserver with the given configuration.
@@ -174,21 +180,86 @@ func Run(cfg Config) error {
 	}
 	gateways = append(gateways, cfg.ExtraGateway...)
 
+	// Set up command wormhole and boot gate if enabled
+	var gate *server.BootGate
+	var commandWH *wormhole.CommandWormhole
+	var listening chan struct{}
+
+	if cfg.CommandWormhole != nil && cfg.CommandWormhole.Enabled && cfg.Wormholes != nil {
+		var err error
+		commandWH, err = wormhole.NewCommandWormhole(*cfg.CommandWormhole)
+		if err != nil {
+			return fmt.Errorf("command wormhole: %w", err)
+		}
+
+		cfg.Wormholes.Command = commandWH
+		cfg.Wormholes.RegisterHidden(commandWH.Wormhole())
+
+		gate = &server.BootGate{
+			Ready: make(chan struct{}),
+			AllowPath: func(path string) bool {
+				return strings.HasPrefix(path, "/wormhole/")
+			},
+		}
+		listening = make(chan struct{})
+	}
+
+	// Without command wormhole, boot completes immediately
+	if commandWH == nil {
+		metricsSvc.RecordBootComplete()
+		return server.Run(server.Config{
+			Port: cfg.Port,
+			GRPCRegister: func(s *grpc.Server) {
+				docspb.RegisterDocsServer(s, docsSvc)
+				metricspb.RegisterMetricsServer(s, metricsSvc)
+				for _, reg := range cfg.ExtraGRPC {
+					reg(s)
+				}
+			},
+			GatewayRegisters: gateways,
+			HTTPMux:          httpMux,
+			RequestCounter:   counter,
+		})
+	}
+
+	// With command wormhole: start server in goroutine, wait for auth
+	serverErr := make(chan error, 1)
+	go func() {
+		serverErr <- server.Run(server.Config{
+			Port: cfg.Port,
+			GRPCRegister: func(s *grpc.Server) {
+				docspb.RegisterDocsServer(s, docsSvc)
+				metricspb.RegisterMetricsServer(s, metricsSvc)
+				for _, reg := range cfg.ExtraGRPC {
+					reg(s)
+				}
+			},
+			GatewayRegisters: gateways,
+			HTTPMux:          httpMux,
+			RequestCounter:   counter,
+			Gate:             gate,
+			Listening:        listening,
+		})
+	}()
+
+	// Wait for listener to be ready
+	select {
+	case <-listening:
+	case err := <-serverErr:
+		return err
+	}
+
+	// Block on auth handshake
+	if err := commandWH.WaitForAuth(); err != nil {
+		log.Printf("command wormhole: %v, proceeding without command session", err)
+	}
+
+	// Open the gate
+	close(gate.Ready)
 	metricsSvc.RecordBootComplete()
 
-	return server.Run(server.Config{
-		Port: cfg.Port,
-		GRPCRegister: func(s *grpc.Server) {
-			docspb.RegisterDocsServer(s, docsSvc)
-			metricspb.RegisterMetricsServer(s, metricsSvc)
-			for _, reg := range cfg.ExtraGRPC {
-				reg(s)
-			}
-		},
-		GatewayRegisters: gateways,
-		HTTPMux:          httpMux,
-		RequestCounter:   counter,
-	})
+	// Block on server
+	return <-serverErr
 }
 
 func serveIndex(w http.ResponseWriter, cfg Config) {

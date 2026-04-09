@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/accretional/anyserver"
 	"github.com/accretional/anyserver/wormhole"
@@ -45,6 +46,9 @@ func main() {
 
 	port := flag.Int("port", 8080, "server port")
 	repoName := flag.String("name", "anyserver", "repository/project name")
+	command := flag.Bool("command", false, "enable command wormhole (boot pauses for auth)")
+	commandAuthTimeout := flag.Duration("command-auth-timeout", 60*time.Second, "command wormhole auth timeout")
+	commandIdleTimeout := flag.Duration("command-idle-timeout", 0, "shutdown after client disconnect (0 = one-shot)")
 	flag.Parse()
 
 	srcFS, err := fs.Sub(sourceFS, "source")
@@ -67,18 +71,28 @@ func main() {
 		os.Exit(0)
 	}()
 
+	var cmdCfg *wormhole.CommandConfig
+	if *command {
+		cmdCfg = &wormhole.CommandConfig{
+			Enabled:     true,
+			AuthTimeout: *commandAuthTimeout,
+			IdleTimeout: *commandIdleTimeout,
+		}
+	}
+
 	if err := anyserver.Run(anyserver.Config{
-		Port:        *port,
-		RepoName:    *repoName,
-		SourceFS:    srcFS,
-		StaticFS:    staticSub,
-		SwaggerJSON: swaggerJSON,
-		APIHTML:     apiHTML,
-		DocsHTML:    docsHTML,
-		BuildLogPB:  buildLogPB,
-		TestLogPB:   testLogPB,
-		ReadmeHTML:  readmeHTML,
-		Wormholes:   reg,
+		Port:            *port,
+		RepoName:        *repoName,
+		SourceFS:        srcFS,
+		StaticFS:        staticSub,
+		SwaggerJSON:     swaggerJSON,
+		APIHTML:         apiHTML,
+		DocsHTML:        docsHTML,
+		BuildLogPB:      buildLogPB,
+		TestLogPB:       testLogPB,
+		ReadmeHTML:      readmeHTML,
+		Wormholes:       reg,
+		CommandWormhole: cmdCfg,
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}

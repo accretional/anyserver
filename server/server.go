@@ -25,6 +25,14 @@ type RegisterFunc func(s *grpc.Server)
 // GatewayRegisterFunc registers grpc-gateway handlers on a mux.
 type GatewayRegisterFunc func(ctx context.Context, mux *runtime.ServeMux, conn *grpc.ClientConn) error
 
+// BootGate controls access to routes during the boot handshake.
+// While the gate is not ready, only paths for which AllowPath returns true
+// are served; all others receive 503.
+type BootGate struct {
+	Ready     chan struct{}            // closed when boot completes
+	AllowPath func(path string) bool  // returns true for paths allowed before boot
+}
+
 // Config holds server configuration.
 type Config struct {
 	Port             int
@@ -32,6 +40,8 @@ type Config struct {
 	GatewayRegisters []GatewayRegisterFunc
 	HTTPMux          *http.ServeMux // additional HTTP routes
 	RequestCounter   *appmetrics.RequestCounter
+	Gate             *BootGate      // if set, gates non-allowed routes until Ready
+	Listening        chan struct{}   // if set, closed after net.Listen succeeds
 }
 
 // Run starts a dual gRPC/HTTP server on a single port.
@@ -74,10 +84,29 @@ func Run(cfg Config) error {
 	// Gateway routes under /gateway/ prefix (raw grpc-gateway proxy)
 	httpMux.Handle("/gateway/", http.StripPrefix("/gateway", gwMux))
 
-	// Wrap HTTP with request counter if provided
+	// Wrap HTTP with boot gate if provided
 	var httpHandler http.Handler = httpMux
+	if cfg.Gate != nil {
+		gate := cfg.Gate
+		httpHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			select {
+			case <-gate.Ready:
+				// Gate open, serve normally
+			default:
+				// Gate closed: check if this path is allowed through
+				if gate.AllowPath == nil || !gate.AllowPath(r.URL.Path) {
+					w.Header().Set("Retry-After", "5")
+					http.Error(w, "server is booting", http.StatusServiceUnavailable)
+					return
+				}
+			}
+			httpMux.ServeHTTP(w, r)
+		})
+	}
+
+	// Wrap HTTP with request counter if provided
 	if cfg.RequestCounter != nil {
-		httpHandler = cfg.RequestCounter.Wrap(httpMux)
+		httpHandler = cfg.RequestCounter.Wrap(httpHandler)
 	}
 
 	// Dual handler: route gRPC vs HTTP based on content-type
@@ -99,5 +128,8 @@ func Run(cfg Config) error {
 	}
 
 	log.Printf("anyserver listening on http://localhost:%d", cfg.Port)
+	if cfg.Listening != nil {
+		close(cfg.Listening)
+	}
 	return httpServer.Serve(lis)
 }

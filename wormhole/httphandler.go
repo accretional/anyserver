@@ -29,6 +29,12 @@ func HTTPHandler(reg *Registry, repoName string) http.Handler {
 			return
 		}
 
+		// Command wormhole: delegate to WebSocket handler
+		if path == "command" && reg.Command != nil {
+			CommandHandler(reg.Command).ServeHTTP(w, r)
+			return
+		}
+
 		// Single wormhole stream or tail
 		wh := reg.Get(Kind(path))
 		if wh == nil {
