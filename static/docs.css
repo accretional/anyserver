@@ -292,3 +292,16 @@ h2 {
     line-height: 1.5;
     color: #444;
 }
+
+/* Wormhole */
+.wormhole-tail pre {
+    background: #1a1a2e;
+    color: #e0e0e0;
+    padding: 1rem;
+    border-radius: 4px;
+    overflow-x: auto;
+    font-size: 0.8rem;
+    line-height: 1.4;
+    max-height: 300px;
+    overflow-y: auto;
+}

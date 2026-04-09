@@ -12,6 +12,7 @@ import (
 	"syscall"
 
 	"github.com/accretional/anyserver"
+	"github.com/accretional/anyserver/wormhole"
 )
 
 //go:embed all:source
@@ -36,6 +37,12 @@ var apiHTML []byte
 var docsHTML []byte
 
 func main() {
+	// Capture stdout/stderr before any output occurs
+	reg := wormhole.NewRegistry()
+	if err := wormhole.CaptureOutputs(reg); err != nil {
+		fmt.Fprintf(os.Stderr, "wormhole capture failed: %v\n", err)
+	}
+
 	port := flag.Int("port", 8080, "server port")
 	repoName := flag.String("name", "anyserver", "repository/project name")
 	flag.Parse()
@@ -71,6 +78,7 @@ func main() {
 		BuildLogPB:  buildLogPB,
 		TestLogPB:   testLogPB,
 		ReadmeHTML:  readmeHTML,
+		Wormholes:   reg,
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}

@@ -1,9 +1,12 @@
 package metrics
 
 import (
+	"fmt"
+	"io"
 	"net/http"
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
 // RequestCounter tracks HTTP request counts by path and status code.
@@ -12,6 +15,7 @@ type RequestCounter struct {
 	byPath   map[string]*atomic.Int64
 	byStatus map[int]*atomic.Int64
 	mu       sync.RWMutex
+	stream   io.Writer // optional: live request log (wormhole)
 }
 
 // NewRequestCounter creates a new counter.
@@ -22,9 +26,15 @@ func NewRequestCounter() *RequestCounter {
 	}
 }
 
+// SetStream sets an io.Writer that receives a line for every HTTP request.
+func (rc *RequestCounter) SetStream(w io.Writer) {
+	rc.stream = w
+}
+
 // Wrap returns middleware that counts requests.
 func (rc *RequestCounter) Wrap(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
 		sw := &statusWriter{ResponseWriter: w, status: 200}
 		next.ServeHTTP(sw, r)
 
@@ -41,6 +51,11 @@ func (rc *RequestCounter) Wrap(next http.Handler) http.Handler {
 		}
 		rc.byStatus[sw.status].Add(1)
 		rc.mu.Unlock()
+
+		if rc.stream != nil {
+			fmt.Fprintf(rc.stream, "%s %s %d %s\n",
+				r.Method, r.URL.Path, sw.status, time.Since(start).Truncate(time.Microsecond))
+		}
 	})
 }
 
@@ -77,4 +92,16 @@ type statusWriter struct {
 func (sw *statusWriter) WriteHeader(code int) {
 	sw.status = code
 	sw.ResponseWriter.WriteHeader(code)
+}
+
+// Flush passes through to the underlying ResponseWriter if it supports flushing.
+func (sw *statusWriter) Flush() {
+	if f, ok := sw.ResponseWriter.(http.Flusher); ok {
+		f.Flush()
+	}
+}
+
+// Unwrap exposes the underlying ResponseWriter for interface assertions.
+func (sw *statusWriter) Unwrap() http.ResponseWriter {
+	return sw.ResponseWriter
 }

@@ -15,6 +15,7 @@ import (
 	docspb "github.com/accretional/anyserver/proto/docs"
 	metricspb "github.com/accretional/anyserver/proto/metrics"
 	"github.com/accretional/anyserver/server"
+	"github.com/accretional/anyserver/wormhole"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"google.golang.org/grpc"
 )
@@ -62,6 +63,10 @@ type Config struct {
 
 	// ExtraHTTP allows mounting additional HTTP routes.
 	ExtraHTTP func(mux *http.ServeMux)
+
+	// Wormholes is the registry of named streams. If set, a /wormhole/
+	// endpoint is mounted and the requests wormhole is created automatically.
+	Wormholes *wormhole.Registry
 }
 
 // Run starts the anyserver with the given configuration.
@@ -144,6 +149,20 @@ func Run(cfg Config) error {
 		cfg.ExtraHTTP(httpMux)
 	}
 
+	// Wormhole streams
+	if cfg.Wormholes != nil {
+		// Create and register requests wormhole
+		reqWH := wormhole.New(wormhole.KindRequests, "Live HTTP request log")
+		cfg.Wormholes.Register(reqWH)
+		counter.SetStream(reqWH)
+
+		// Create boot wormhole
+		bootWH := wormhole.New(wormhole.KindBoot, "Boot lifecycle events")
+		cfg.Wormholes.Register(bootWH)
+
+		httpMux.Handle("/wormhole/", wormhole.HTTPHandler(cfg.Wormholes, cfg.RepoName))
+	}
+
 	// Gateway registrations
 	gateways := []server.GatewayRegisterFunc{
 		func(ctx context.Context, mux *runtime.ServeMux, conn *grpc.ClientConn) error {
@@ -218,6 +237,7 @@ const navHTML = `<header class="header">
     <a href="/docs/">Docs</a>
     <a href="/api/">API</a>
     <a href="/server/">Server</a>
+    <a href="/wormhole/">Wormhole</a>
   </nav>
 </header>`
 

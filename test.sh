@@ -40,6 +40,24 @@ do_test() {
     fi
     echo ""
 
+    # --- Ensure embedded placeholders exist for go vet ---
+
+    echo "--- Ensuring embed placeholders ---"
+    mkdir -p cmd/anyserver/source cmd/anyserver/static
+    # Directories must contain at least one file for go:embed to accept them
+    [ "$(ls -A cmd/anyserver/source 2>/dev/null)" ] || touch cmd/anyserver/source/placeholder
+    [ "$(ls -A cmd/anyserver/static 2>/dev/null)" ] || touch cmd/anyserver/static/placeholder
+    for f in cmd/anyserver/swagger.json cmd/anyserver/api.html cmd/anyserver/docs.html; do
+        [ -f "$f" ] || echo '{}' > "$f"
+    done
+    if [ ! -f cmd/anyserver/build.binarypb ]; then
+        go build -o logpb ./cmd/logpb/ && echo "(placeholder)" | ./logpb build cmd/anyserver/build.binarypb && rm -f logpb
+    fi
+    if [ ! -f cmd/anyserver/tests.binarypb ]; then
+        go build -o logpb ./cmd/logpb/ && echo "(placeholder)" | ./logpb test cmd/anyserver/tests.binarypb && rm -f logpb
+    fi
+    echo ""
+
     # --- Step 1: go vet ---
 
     echo "--- go vet ---"
@@ -95,7 +113,11 @@ do_test() {
     check_status "http://localhost:$TEST_PORT/api/swagger.json" "200" "GET /api/swagger.json"
     check_status "http://localhost:$TEST_PORT/static/docs.css" "200" "GET /static/docs.css"
     check_status "http://localhost:$TEST_PORT/server/" "200" "GET /server/"
+    check_status "http://localhost:$TEST_PORT/wormhole/" "200" "GET /wormhole/"
     check_status "http://localhost:$TEST_PORT/nonexistent" "404" "GET /nonexistent"
+
+    # Kill the smoke test server so tee can finish
+    kill "$SERVER_PID" 2>/dev/null && wait "$SERVER_PID" 2>/dev/null || true
 
     echo ""
     echo "=== All tests passed ==="
