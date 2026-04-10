@@ -182,7 +182,7 @@ body {
 .readme-content p { margin-bottom: 0.75rem; }
 .readme-content ul, .readme-content ol { margin-left: 1.5rem; margin-bottom: 0.75rem; }
 
-/* ── Line numbers ───────────────────────────────────────── */
+/* ── Line numbers (legacy) ──────────────────────────────── */
 
 .ln {
     color: rgba(245,158,11,.4);
@@ -191,4 +191,63 @@ body {
     min-width: 3em;
     text-align: right;
     margin-right: 1em;
+}
+
+/* ── File panel ─────────────────────────────────────────── */
+
+.file-panel {
+    flex: 1;
+    overflow: hidden;
+}
+.file-panel .file-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 8px;
+    background: var(--amber-bg);
+    border-bottom: 1px solid var(--stroke);
+    color: var(--amber);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    font-weight: 600;
+}
+.file-panel .file-head .file-name { font-weight: 600; }
+.file-panel .file-head .file-info { color: var(--muted); font-weight: 400; text-transform: none; letter-spacing: normal; }
+.file-panel .file-body {
+    flex: 1;
+    overflow: auto;
+    min-height: 0;
+    scrollbar-width: none;
+}
+.file-panel .file-body::-webkit-scrollbar { display: none; }
+.file-panel pre {
+    margin: 0;
+    padding: 0;
+    font-size: 12px;
+    line-height: 1.5;
+    tab-size: 4;
+    color: var(--text);
+    counter-reset: line-number;
+}
+.file-panel .line {
+    display: flex;
+    padding: 0 1rem 0 0;
+    min-height: 1.5em;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+.file-panel .line::before {
+    content: counter(line-number);
+    counter-increment: line-number;
+    flex-shrink: 0;
+    min-width: 3.5em;
+    padding-right: 1em;
+    text-align: right;
+    color: rgba(245,158,11,.35);
+    user-select: none;
+    white-space: nowrap;
+}
+.file-panel .line:hover {
+    background: rgba(245,158,11,.06);
 }

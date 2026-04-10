@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+package anyserver.files;
+
+option go_package = "github.com/accretional/anyserver/proto/files;filespb";
+
+// Document is a text file represented as a sequence of lines.
+message Document {
+  repeated string line = 1;
+}

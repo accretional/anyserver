@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package anyserver.files;
+
+option go_package = "github.com/accretional/anyserver/proto/files;filespb";
+
+// Socket is a reference to a WebSocket endpoint requiring authentication.
+message Socket {
+  string path = 1;
+  string token = 2;
+}

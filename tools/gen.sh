@@ -41,5 +41,17 @@ protoc \
     --openapiv2_out=proto/metrics \
     metrics.proto
 
+# --- Generate files proto ---
+
+echo "  proto/files/*.proto"
+protoc \
+    -I proto/files \
+    -I third_party \
+    --go_out=proto/files --go_opt=paths=source_relative \
+    --go-grpc_out=proto/files --go-grpc_opt=paths=source_relative \
+    --grpc-gateway_out=proto/files --grpc-gateway_opt=paths=source_relative \
+    --openapiv2_out=proto/files \
+    resource.proto document.proto media.proto data.proto socket.proto server.proto
+
 echo ""
 echo "=== Proto generation complete ==="

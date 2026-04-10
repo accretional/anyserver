@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package anyserver.files;
+
+option go_package = "github.com/accretional/anyserver/proto/files;filespb";
+
+// Data is a generic named binary payload.
+message Data {
+  string name = 1;
+  string type = 2;
+  bytes contents = 3;
+}

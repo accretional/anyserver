@@ -1,0 +1,165 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "server.proto",
+    "version": "version not set"
+  },
+  "tags": [
+    {
+      "name": "Files"
+    }
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/files/{path}": {
+      "get": {
+        "summary": "Get returns a file as a stream of Resource messages.",
+        "operationId": "Files_Get",
+        "responses": {
+          "200": {
+            "description": "A successful response.(streaming responses)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "result": {
+                  "$ref": "#/definitions/filesResource"
+                },
+                "error": {
+                  "$ref": "#/definitions/rpcStatus"
+                }
+              },
+              "title": "Stream result of filesResource"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "path",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "pattern": ".+"
+          }
+        ],
+        "tags": [
+          "Files"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "filesData": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        },
+        "contents": {
+          "type": "string",
+          "format": "byte"
+        }
+      },
+      "description": "Data is a generic named binary payload."
+    },
+    "filesDocument": {
+      "type": "object",
+      "properties": {
+        "line": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "description": "Document is a text file represented as a sequence of lines."
+    },
+    "filesMedia": {
+      "type": "object",
+      "properties": {
+        "mimeType": {
+          "type": "string"
+        },
+        "contents": {
+          "type": "string",
+          "format": "byte"
+        }
+      },
+      "description": "Media is a binary file with a known MIME type (image, audio, video, etc.)."
+    },
+    "filesResource": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "document": {
+          "$ref": "#/definitions/filesDocument"
+        },
+        "media": {
+          "$ref": "#/definitions/filesMedia"
+        },
+        "data": {
+          "$ref": "#/definitions/filesData"
+        },
+        "socket": {
+          "$ref": "#/definitions/filesSocket"
+        }
+      },
+      "description": "Resource is a typed file or stream reference returned by the Files service."
+    },
+    "filesSocket": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "token": {
+          "type": "string"
+        }
+      },
+      "description": "Socket is a reference to a WebSocket endpoint requiring authentication."
+    },
+    "protobufAny": {
+      "type": "object",
+      "properties": {
+        "@type": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": {}
+    },
+    "rpcStatus": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "message": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/protobufAny"
+          }
+        }
+      }
+    }
+  }
+}

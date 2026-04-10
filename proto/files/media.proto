@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package anyserver.files;
+
+option go_package = "github.com/accretional/anyserver/proto/files;filespb";
+
+// Media is a binary file with a known MIME type (image, audio, video, etc.).
+message Media {
+  string mime_type = 1;
+  bytes contents = 2;
+}

@@ -343,14 +343,10 @@ const indexTemplate = `<!DOCTYPE html>
       <input class="search" id="q" placeholder="search code...">
     </div>
   </aside>
-  <div class="document-panel">
-    <div class="main-inner" id="mainContent">
-      {{if .ReadmeHTML}}
-      <div class="readme-section">
-        <h2>README</h2>
-        <div class="readme-content">{{.ReadmeHTML}}</div>
-      </div>
-      {{end}}
+  <div class="content" id="mainContent">
+    <div class="panel file-panel" id="filePanel">
+      <div class="file-head"><span class="file-name" id="fileName">README.md</span><span class="file-info" id="fileInfo"></span></div>
+      <div class="file-body" id="fileBody"></div>
     </div>
   </div>
 </div>
@@ -567,22 +563,30 @@ function doConsoleAuth(){
 
 // Load file into main content area
 function loadFile(path,name){
-  var main=document.getElementById('mainContent');
-  main.innerHTML='<div class="file-view-meta">Loading '+path+'...</div>';
+  var nameEl=document.getElementById('fileName');
+  var infoEl=document.getElementById('fileInfo');
+  var body=document.getElementById('fileBody');
+  nameEl.textContent=name;
+  infoEl.textContent='loading...';
+  body.innerHTML='';
   fetch('/source/raw/'+path).then(function(r){
     if(!r.ok) throw new Error('not found');
     return r.text();
   }).then(function(text){
     var lines=text.split('\n');
-    var html='<div class="file-view-meta"><b style="color:var(--amber)">'+name+'</b> <span>'+lines.length+' lines</span></div>';
-    html+='<div class="file-view"><pre>';
-    lines.forEach(function(line,i){
-      html+='<span class="ln">'+(i+1)+'</span>  '+escapeHtml(line)+'\n';
+    infoEl.textContent=lines.length+' lines';
+    var pre=document.createElement('pre');
+    lines.forEach(function(line){
+      var span=document.createElement('span');
+      span.className='line';
+      span.textContent=line;
+      pre.appendChild(span);
     });
-    html+='</pre></div>';
-    main.innerHTML=html;
+    body.innerHTML='';
+    body.appendChild(pre);
   }).catch(function(){
-    main.innerHTML='<div class="file-view-meta" style="color:#d73a49">Could not load '+path+'</div>';
+    infoEl.textContent='error';
+    body.innerHTML='<div style="padding:1rem;color:#d73a49">Could not load '+escapeHtml(path)+'</div>';
   });
 }
 function escapeHtml(s){
@@ -628,6 +632,9 @@ document.getElementById('q').addEventListener('input',function(){
   };
   x.send();
 })();
+
+// Load README.md by default
+loadFile('README.md','README.md');
 </script>
 
 </body>

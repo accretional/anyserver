@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package anyserver.files;
+
+option go_package = "github.com/accretional/anyserver/proto/files;filespb";
+
+import "google/api/annotations.proto";
+import "resource.proto";
+
+service Files {
+  // Get returns a file as a stream of Resource messages.
+  rpc Get(GetRequest) returns (stream Resource) {
+    option (google.api.http) = {
+      get: "/files/{path=**}"
+    };
+  }
+}
+
+message GetRequest {
+  string path = 1;
+}

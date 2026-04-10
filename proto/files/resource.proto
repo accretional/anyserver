@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package anyserver.files;
+
+option go_package = "github.com/accretional/anyserver/proto/files;filespb";
+
+import "document.proto";
+import "media.proto";
+import "data.proto";
+import "socket.proto";
+
+// Resource is a typed file or stream reference returned by the Files service.
+message Resource {
+  string path = 1;
+
+  oneof kind {
+    Document document = 2;
+    Media media = 3;
+    Data data = 4;
+    Socket socket = 5;
+  }
+}
