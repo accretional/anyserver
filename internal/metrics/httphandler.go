@@ -113,6 +113,7 @@ const serverTemplate = `<!DOCTYPE html>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Server - {{.RepoName}}</title>
+<link rel="stylesheet" href="/static/base.css">
 <link rel="stylesheet" href="/static/docs.css">
 <style>
 html, body { height:100%; }

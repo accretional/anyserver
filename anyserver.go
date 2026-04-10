@@ -194,6 +194,7 @@ func Run(cfg Config) error {
 
 		cfg.Wormholes.Command = commandWH
 		cfg.Wormholes.RegisterHidden(commandWH.Wormhole())
+		log.Printf("COMMAND TOKEN: %s", commandWH.Token())
 
 		gate = &server.BootGate{
 			Ready: make(chan struct{}),
@@ -320,123 +321,10 @@ const indexTemplate = `<!DOCTYPE html>
 <html lang="en"><head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>{{.RepoName}}</title>
-<style>
-:root{--amber:#f59e0b;--amber-dim:rgba(245,158,11,0.55);--amber-bg:rgba(245,158,11,0.07);--stroke:rgba(245,158,11,0.35);--text:#d6d6d6;--muted:#8a8a8a}
-*{box-sizing:border-box}
-html,body{height:100%}
-body{margin:0;background:#000;color:var(--text);font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace;font-size:11px;line-height:1.35;-webkit-font-smoothing:antialiased;overflow:hidden;display:flex;flex-direction:column}
-.ticker{position:relative;height:24px;display:flex;align-items:center;gap:10px;padding:0 8px;background:rgba(0,0,0,.86);border-bottom:1px solid var(--amber);backdrop-filter:blur(6px);z-index:60;white-space:nowrap;overflow:hidden;flex-shrink:0}
-.ticker a{color:var(--amber);text-decoration:none}
-.ticker a:hover{text-decoration:underline}
-.ticker .dot{color:var(--amber);opacity:.7}
-.ticker b{color:var(--amber);font-weight:600}
-.main-area{flex:1;display:flex;overflow:hidden;position:relative;z-index:1}
-.sidebar{width:240px;flex-shrink:0;background:rgba(5,5,5,.9);border-right:1px solid var(--stroke);display:flex;flex-direction:column;overflow:hidden}
-.sidebar .panel{border:none;border-bottom:1px solid var(--stroke);background:transparent;flex-shrink:0}
-.sidebar .panel.tree-panel{border-bottom:none;flex:1;min-height:0;display:flex;flex-direction:column}
-.sidebar .panel.search-panel{flex-shrink:0;border-top:1px solid var(--stroke);border-bottom:none}
-.sidebar .panel-head{padding:4px 8px;background:var(--amber-bg);color:var(--amber);text-transform:uppercase;letter-spacing:.08em;font-weight:600;font-size:10px;border-bottom:1px solid var(--stroke)}
-.sidebar .search{width:100%;background:#000;color:var(--text);border:none;padding:6px 8px;font-family:inherit;font-size:11px;outline:none}
-.sidebar .search::placeholder{color:var(--muted)}
-.tree{list-style:none;padding:4px 8px;overflow-y:auto;overflow-x:hidden;flex:1;font-size:11px;line-height:1.6}
-.tree li{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;padding:0 2px}
-.tree li:hover{background:rgba(245,158,11,.08)}
-.tree li .sz{color:var(--muted);margin-left:4px;font-size:10px}
-.tree li .cnt{color:var(--muted);margin-left:4px;font-size:10px}
-.tree li a{color:var(--text);text-decoration:none}
-.tree li a:hover{color:var(--amber)}
-.tree li.dir>a{color:var(--amber)}
-.tree .dot{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:4px;vertical-align:middle}
-.dot.amber{background:#f59e0b}
-.dot.olive{background:#84cc16}
-.dot.bronze{background:#d97706}
-.dot.terra{background:#92400e}
-.tree .sub{list-style:none;padding-left:12px;overflow:hidden;display:none}
-.tree li.open>.sub{display:block}
-.main-content{flex:1;overflow-y:auto;padding:1rem}
-.main-inner{max-width:1000px;margin:0 auto}
-.readme-section{border:1px solid var(--stroke);background:rgba(0,0,0,.5);padding:1rem 1.25rem}
-.readme-section h2{color:var(--amber);font-size:13px;text-transform:uppercase;letter-spacing:.06em;margin-bottom:0.75rem;padding-bottom:0.5rem;border-bottom:1px solid var(--stroke)}
-.readme-section .readme-content{color:var(--text);font-size:12px;line-height:1.6}
-.readme-section .readme-content h1,.readme-section .readme-content h2,.readme-section .readme-content h3{color:var(--amber);margin-top:1.25rem;margin-bottom:0.4rem}
-.readme-section .readme-content pre{background:rgba(245,158,11,0.05);border:1px solid var(--stroke);padding:0.75rem;overflow-x:auto;font-size:11px}
-.readme-section .readme-content code{font-family:inherit;font-size:0.95em}
-.readme-section .readme-content a{color:var(--amber)}
-.readme-section .readme-content p{margin-bottom:0.6rem}
-.readme-section .readme-content ul,.readme-section .readme-content ol{margin-left:1.25rem;margin-bottom:0.6rem}
-.file-view{border:1px solid var(--stroke);background:rgba(0,0,0,.5);overflow-x:auto}
-.file-view pre{margin:0;padding:1rem;font-size:12px;line-height:1.5;tab-size:4;color:var(--text)}
-.file-view .ln{color:rgba(245,158,11,.4);user-select:none;display:inline-block;min-width:3em;text-align:right;margin-right:1em}
-.file-view-meta{margin-bottom:0.5rem;font-size:11px;color:var(--muted)}
-.dock{position:relative;height:110px;background:rgba(5,5,5,.94);border-top:1px solid var(--amber);box-shadow:0 -8px 30px rgba(0,0,0,.8);transition:height .28s ease;z-index:50;flex-shrink:0}
-.dock.expanded{height:320px}
-.dock-toggle{position:absolute;top:-14px;left:50%;transform:translateX(-50%);width:46px;height:16px;background:#000;border:1px solid var(--amber);border-bottom:none;border-radius:4px 4px 0 0;color:var(--amber);font-size:10px;line-height:14px;cursor:pointer;letter-spacing:.1em}
-.dock-toggle:hover{background:#0a0a0a}
-.dock-inner{height:100%;padding:8px;overflow:hidden}
-.grid{display:grid;grid-template-columns:1fr 210px 220px 260px;gap:8px;height:100%}
-.panel{border:1px solid var(--stroke);background:rgba(0,0,0,.55);display:flex;flex-direction:column;min-height:0;transition:border-color .15s}
-.panel:hover{border-color:var(--amber)}
-.panel-header{display:flex;align-items:center;justify-content:space-between;padding:2px 6px 3px;border-bottom:1px solid var(--stroke);background:var(--amber-bg);color:var(--amber);text-transform:uppercase;letter-spacing:.08em;font-weight:600;font-size:10px}
-.panel-header .ico{cursor:pointer;opacity:.8;text-transform:lowercase;border:1px solid var(--stroke);padding:0 4px;border-radius:2px;background:rgba(0,0,0,0.4)}
-.panel-header .ico:hover{opacity:1;border-color:var(--amber)}
-.panel-body{flex:1;min-height:0;padding:5px 6px;display:flex;flex-direction:column;gap:5px;overflow:hidden}
-.panel.collapsed .panel-body{display:none}
-.cam{display:grid;grid-template-columns:1fr auto;gap:6px;align-items:center;padding:2px 0;border-bottom:1px dotted rgba(245,158,11,.14)}
-.cam:last-child{border-bottom:none}
-.cam .name{color:#e8e8e8}
-.cam .meta{color:var(--muted)}
-.cam .meta b{color:var(--amber);font-weight:600}
-.kv{display:flex;align-items:center;gap:6px;padding:1px 0;border-bottom:1px dotted rgba(245,158,11,.14);white-space:nowrap}
-.kv:last-child{border-bottom:none}
-.kv .name{color:var(--muted);flex-shrink:0}
-.kv .val{color:#e8e8e8}
-.kv .val b{color:var(--amber);font-weight:600}
-.info-split{display:flex;flex-direction:column;gap:0;height:100%;overflow-y:auto}
-.info-split .subhead{padding:4px 6px 2px;margin:0}
-.site-footer{flex-shrink:0;height:1.5rem;background:#000;color:var(--muted);border-top:1px solid rgba(245,158,11,.25);display:flex;align-items:center;justify-content:space-between;padding:0 10px;font-size:10px;z-index:60}
-.site-footer a{color:var(--muted);text-decoration:none;margin-left:0.75rem}
-.site-footer a:hover{color:var(--amber)}
-.console-bar{display:flex;align-items:center;gap:0;border-bottom:1px solid var(--stroke);background:var(--amber-bg);flex-shrink:0;height:26px}
-.tab{padding:4px 10px;color:var(--muted);cursor:pointer;border:1px solid transparent;border-bottom:none;font-size:10px;text-transform:uppercase;letter-spacing:.06em;background:none;height:100%;display:flex;align-items:center}
-.tab:hover{color:var(--amber)}
-.tab.active{color:var(--amber);border-color:var(--stroke);background:rgba(0,0,0,.4);font-weight:600}
-.tab.locked{color:rgba(138,138,138,.4);cursor:default;pointer-events:none}
-.tab.locked.active{color:rgba(138,138,138,.4);border-color:transparent;background:none;font-weight:400}
-.console-auth{margin-left:auto;display:flex;align-items:center;gap:6px;padding-right:8px}
-.console-auth input{background:#000;color:var(--text);border:1px solid var(--stroke);padding:2px 6px;font-family:inherit;font-size:10px;width:10rem;border-radius:2px}
-.console-auth button{background:rgba(245,158,11,.15);color:var(--amber);border:1px solid var(--stroke);padding:2px 8px;border-radius:2px;cursor:pointer;font-family:inherit;font-size:10px}
-.console-auth button:hover{background:rgba(245,158,11,.25)}
-.console-auth span{font-size:10px;color:var(--muted)}
-.tab-panes{flex:1;min-height:0;position:relative}
-.tab-pane{position:absolute;inset:0;display:none}
-.tab-pane.active{display:block}
-.tab-pane iframe{width:100%;height:100%;border:none;background:#000}
-.deliv{display:flex;flex-direction:column;gap:4px}
-.drow{display:grid;grid-template-columns:1fr auto;gap:6px;align-items:center;padding:2px 0;border-bottom:1px dotted rgba(245,158,11,.12)}
-.drow:last-child{border-bottom:none}
-.dname{color:#e2e2e2}
-.dval{color:var(--muted);text-align:right}
-.dval b{color:var(--amber)}
-.extra{margin-top:4px;padding-top:4px;border-top:1px solid rgba(245,158,11,.18);display:flex;flex-direction:column;gap:4px;opacity:.98}
-.subhead{color:var(--amber);text-transform:uppercase;letter-spacing:.06em;font-size:10px;opacity:.9}
-.chat{display:flex;flex-direction:column;gap:3px;max-height:78px;overflow:auto;padding-right:2px}
-.msg{border-left:2px solid rgba(245,158,11,.35);padding-left:4px}
-.msg .who{color:var(--amber)}
-.msg .time{color:var(--muted);margin-left:4px}
-.spark{width:48px;height:14px;opacity:.9;flex-shrink:0}
-.shotlist{display:grid;grid-template-columns:1fr auto;row-gap:2px;column-gap:6px}
-.shotlist .chk{color:var(--amber)}
-.bar{height:4px;background:rgba(245,158,11,.18);border:1px solid rgba(245,158,11,.3);position:relative;overflow:hidden}
-.bar>i{position:absolute;left:0;top:0;bottom:0;background:var(--amber);width:0}
-@media (max-width:900px){
-  .grid{grid-template-columns:1fr;grid-auto-rows:min-content;overflow:auto}
-  .dock{height:170px}
-  .dock.expanded{height:88vh}
-}
-</style>
+<link rel="stylesheet" href="/static/base.css">
+<link rel="stylesheet" href="/static/app.css">
 </head>
-<body>
+<body class="app">
 <div class="main-area">
   <aside class="sidebar">
     <div class="panel">
@@ -455,7 +343,7 @@ body{margin:0;background:#000;color:var(--text);font-family:"SF Mono",ui-monospa
       <input class="search" id="q" placeholder="search code...">
     </div>
   </aside>
-  <div class="main-content">
+  <div class="document-panel">
     <div class="main-inner" id="mainContent">
       {{if .ReadmeHTML}}
       <div class="readme-section">
@@ -751,6 +639,7 @@ const placeholderTemplate = `<!DOCTYPE html>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>{{.Section}} - {{.RepoName}}</title>
+<link rel="stylesheet" href="/static/base.css">
 <link rel="stylesheet" href="/static/docs.css">
 </head>
 <body>
@@ -770,6 +659,7 @@ const docsPageTemplate = `<!DOCTYPE html>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Docs - {{.RepoName}}</title>
+<link rel="stylesheet" href="/static/base.css">
 <link rel="stylesheet" href="/static/docs.css">
 </head>
 <body>
@@ -786,6 +676,7 @@ const apiPageTemplate = `<!DOCTYPE html>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>API - {{.RepoName}}</title>
+<link rel="stylesheet" href="/static/base.css">
 <link rel="stylesheet" href="/static/docs.css">
 </head>
 <body>

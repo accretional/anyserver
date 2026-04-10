@@ -1,41 +1,10 @@
-:root {
-    --amber: #f59e0b;
-    --amber-dim: rgba(245,158,11,0.55);
-    --amber-bg: rgba(245,158,11,0.07);
-    --stroke: rgba(245,158,11,0.35);
-    --text: #d6d6d6;
-    --muted: #8a8a8a;
-}
+/* docs.css — styles for /api/, /docs/, /server/ pages
+ *
+ * Requires base.css to be loaded first.
+ */
 
-* { margin: 0; padding: 0; box-sizing: border-box; }
+/* ── Legacy header ──────────────────────────────────────── */
 
-body {
-    font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
-    background: #000;
-    color: var(--text);
-    line-height: 1.5;
-    font-size: 12px;
-}
-
-/* Ticker nav */
-.ticker {
-    height: 24px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 0 8px;
-    background: rgba(0,0,0,.86);
-    border-bottom: 1px solid var(--amber);
-    white-space: nowrap;
-    overflow: hidden;
-    font-size: 11px;
-}
-.ticker a { color: var(--amber); text-decoration: none; }
-.ticker a:hover { text-decoration: underline; }
-.ticker .dot { color: var(--amber); opacity: .7; }
-.ticker b { color: var(--amber); font-weight: 600; }
-
-/* Legacy header — kept for /server/ page */
 .header {
     height: 24px;
     background: #000;
@@ -51,6 +20,8 @@ body {
 .header-nav { display: flex; gap: 1rem; }
 .header-nav a { color: var(--muted); text-decoration: none; font-size: 11px; }
 .header-nav a:hover { color: var(--amber); }
+
+/* ── Content container ──────────────────────────────────── */
 
 .content {
     max-width: 1100px;
@@ -77,7 +48,8 @@ h2 {
     letter-spacing: .06em;
 }
 
-/* File listing */
+/* ── File listing ───────────────────────────────────────── */
+
 .file-list {
     width: 100%;
     border-collapse: collapse;
@@ -110,11 +82,11 @@ h2 {
 }
 
 .file-list tr:hover { background: rgba(245,158,11,.05); }
-
 .file-list a { color: var(--amber); text-decoration: none; }
 .file-list a:hover { text-decoration: underline; }
 
-/* Code view */
+/* ── Code view ──────────────────────────────────────────── */
+
 .file-meta {
     display: flex;
     gap: 1rem;
@@ -150,16 +122,8 @@ h2 {
     color: var(--text);
 }
 
-.ln {
-    color: rgba(245,158,11,.4);
-    user-select: none;
-    display: inline-block;
-    min-width: 3em;
-    text-align: right;
-    margin-right: 1em;
-}
+/* ── Index/section cards ────────────────────────────────── */
 
-/* Index/section cards */
 .index-section {
     background: rgba(0,0,0,.5);
     border: 1px solid var(--stroke);
@@ -197,36 +161,8 @@ h2 {
     border-color: var(--amber);
 }
 
-.readme-content {
-    font-size: 12px;
-    line-height: 1.7;
-    color: var(--text);
-}
+/* ── API reference ──────────────────────────────────────── */
 
-.readme-content h1, .readme-content h2, .readme-content h3 {
-    color: var(--amber);
-    margin-top: 1.5rem;
-    margin-bottom: 0.5rem;
-}
-
-.readme-content pre {
-    background: rgba(245,158,11,.05);
-    border: 1px solid var(--stroke);
-    padding: 0.75rem;
-    overflow-x: auto;
-    font-size: 11px;
-}
-
-.readme-content code {
-    font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
-    font-size: 0.95em;
-}
-
-.readme-content a { color: var(--amber); }
-.readme-content p { margin-bottom: 0.75rem; }
-.readme-content ul, .readme-content ol { margin-left: 1.5rem; margin-bottom: 0.75rem; }
-
-/* API reference */
 .api-endpoint {
     margin-bottom: 1.5rem;
     padding-bottom: 1.5rem;
@@ -255,7 +191,8 @@ h2 {
 .api-schema:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
 .api-schema h3 { font-size: 12px; margin-bottom: 0.5rem; color: var(--text); }
 
-/* Package documentation */
+/* ── Package documentation ──────────────────────────────── */
+
 .doc-entry {
     margin-bottom: 1.25rem;
     padding-bottom: 1.25rem;
@@ -274,7 +211,8 @@ h2 {
 .pkg-doc { margin-bottom: 1rem; }
 .pkg-doc pre { white-space: pre-wrap; font-size: 12px; line-height: 1.5; color: var(--muted); }
 
-/* Wormhole / Streaming */
+/* ── Wormhole / Streaming ───────────────────────────────── */
+
 .wormhole-tail pre {
     background: #000;
     color: #e0e0e0;
