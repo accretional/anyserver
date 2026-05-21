@@ -245,7 +245,14 @@ details.panel > .panel-body { flex: 1 1 0; min-height: 0; height: 100%; }
     background: #000;
 }
 
-.panel-body.tab-panes { position: relative; }
+/* tab-panes uses absolute-positioned children (.tab-pane { position:
+ * absolute; inset: 0 }) which are out of flow — so the parent never
+ * needs its own scrollbar.  Override the inherited overflow:auto. */
+.panel-body.tab-panes {
+    position: relative;
+    overflow: hidden;
+    display: block;     /* no flex layout needed; children are absolute */
+}
 
 /* ── Tabs ───────────────────────────────────────────────── */
 
