@@ -20,12 +20,10 @@ A generic, composable gRPC+HTTP server framework for Go. Anyserver provides:
 
 ```
 cmd/anyserver/main.go    <- entry point, uses services.go for registration
-services.go              <- top-level service registry (which gRPC services to start)
+services.go              <- declarative list of gRPC services to include (consumed by tools/gen.sh — see Plan 1f)
 anyserver.go             <- library entry point: Config + Run() wires all services
 server/
-  server.go              <- dual gRPC/HTTP server logic (Run callback pattern from katarche)
-  gateway.go             <- grpc-gateway reverse proxy + Swagger UI serving
-  httpproxy.go           <- gRPC->HTTP proxy: renders SourceCode stream as HTML per type
+  server.go              <- dual gRPC/HTTP server on a single h2c port; grpc-gateway, request counter, boot gate
 proto/docs/
   docs.proto             <- Docs service: Source RPC (streaming, typed responses)
   docs.pb.go             <- generated
@@ -38,35 +36,64 @@ proto/metrics/
   metrics_grpc.pb.go     <- generated
   metrics.pb.gw.go       <- grpc-gateway generated
   metrics.swagger.json   <- OpenAPI spec generated
+proto/files/
+  server.proto           <- Files service: Get(path) -> stream Resource (defined; impl pending — see Plan)
+  resource.proto         <- Resource oneof: document/media/data/socket
+  document.proto media.proto data.proto socket.proto
+  *.pb.go *.pb.gw.go *.swagger.json
 internal/docs/
   service.go             <- Docs service implementation (go:embed source)
-  httphandler.go         <- HTML source browser (directory listing, code view, media)
+  httphandler.go         <- /source/{tree.json,raw/<path>,/} JSON+text endpoints used by the sidebar tree + file viewer
 internal/metrics/
   service.go             <- Metrics service implementation (runtime stats, request counters, build/test/boot logs)
-  httphandler.go         <- Server info HTML page (pure HTML+CSS)
+  httphandler.go         <- /server/ page (shared chrome via internal/ui; iframe panes for /wormhole/{requests,stdout,stderr})
+internal/ui/
+  nav.go                 <- shared top-of-page ticker used by /docs, /api, /server, placeholders
+  footer.go              <- shared all-footer (expandable frunk, menu collapse, links — CSS-only)
 metrics/
-  request_counter.go     <- HTTP middleware tracking requests by path and status code
+  request_counter.go     <- HTTP middleware tracking requests by path and status code (streams to /wormhole/requests)
   procfs.go              <- Go runtime stats (goroutines, heap, GC); TODO: Linux procfs
+wormhole/
+  wormhole.go            <- Kind/Wormhole types: named, fan-out broadcast streams
+  registry.go            <- in-process registry of named wormholes
+  capture.go             <- redirects os.Stdout/os.Stderr into KindStdout/KindStderr wormholes
+  command.go             <- token-authenticated KindCommand channel + boot-time handshake
+  command_handler.go     <- WebSocket protocol for the command channel
+  httphandler.go         <- /wormhole/ WS + /wormhole/{kind}/pane iframe HTML
 cmd/swaggerhtml/
   main.go                <- build tool: merges OpenAPI specs into static HTML reference page
+cmd/godochtml/
+  main.go                <- build tool: generates /docs/ HTML from Go source using go/doc + go/parser
 cmd/logpb/
   main.go                <- build tool: serializes stdout to BuildLog/TestLog binarypb
 static/
-  docs.css               <- styling for all pages
-http/
-  *.textproto            <- HTTP.textproto files: templatized HTTP responses per gRPC response type
+  base.css               <- variables, panel/tab primitives, all-footer, scrollbar, link styling
+  app.css                <- root index page only: sidebar layout, dock, multi-panel main
+  docs.css               <- /docs, /api, /server, placeholder page styling
+  accretion_256.webp     <- spinner-disk asset in the footer
+  cubist_thin_full.svg   <- sidebar decoration (rendered via CSS mask in amber)
+  plato_11_isometric.svg <- alternate sidebar decoration
+chrome-testing/
+  snap.sh                <- vendored from accretional/chromerpc; URL -> PNG via headless Chrome
+  snapshots/             <- committed PNGs for visual progress tracking
+snap.sh                  <- top-level wrapper: snaps /, /#terms, /docs, /api, /server against a running server
+LET_IT_RIP.sh            <- non-blocking pipeline: setup + test + build + serve (nohup) + snap + open
 tools/
-  gen.sh                 <- protoc + gateway + openapi codegen, auto-generates service registration
+  gen.sh                 <- protoc + gateway + openapi codegen (auto service registration: see Plan 1f)
 ```
 
 ## Quick Start
 
 ```bash
 ./setup.sh        # install protoc plugins, download third-party protos
-./build.sh        # embed source + static assets, generate API HTML, build binary
+./tools/gen.sh    # regenerate proto Go code, gateway, OpenAPI specs
+./build.sh        # embed source + static assets, generate API/docs HTML, build binary
 ./test.sh         # vet, test, build, smoke test (validates all endpoints)
-./LET_IT_RIP.sh   # full pipeline: setup + test + build + serve + open browser
+./snap.sh         # screenshot /, /#terms, /docs, /api, /server via headless Chrome
+./LET_IT_RIP.sh   # full pipeline: setup + test + build + serve + snap + open browser
 ```
+
+`LET_IT_RIP.sh` is **non-blocking** — it detaches the server via `nohup` and exits as soon as snap + browser-open succeed. Re-invoking it kills the prior server on the port and rebuilds fresh. PNGs land in `chrome-testing/snapshots/` and are committed alongside code so you can review UI progress in the repo history.
 
 ## Default Service: Docs
 
@@ -83,7 +110,7 @@ service Docs {
 
 message SourceCode {
   oneof kind {
-    Path path = 1;       // Directory listing entry (file or subdirectory)
+    PathEntry path = 1;  // Directory listing entry (file or subdirectory)
     Code code = 2;       // Source code / text file chunk
     Media media = 3;     // Image, audio, video, etc.
     Data data = 4;       // Generic streamed data (large files, mixed content)
@@ -91,7 +118,7 @@ message SourceCode {
   }
 }
 
-message Path {
+message PathEntry {
   string name = 1;
   bool is_dir = 2;
   int64 size = 3;
@@ -113,7 +140,7 @@ message Data {
     string type_url = 1;   // Describes the data format
     string text = 2;       // Human-readable label/description
     string file_name = 3;  // Associated filename
-    bool continue = 4;     // More chunks follow
+    bool more = 4;         // More chunks follow
   }
   bytes contents = 5;
 }
@@ -198,15 +225,75 @@ No JavaScript. The raw spec is also available at `/api/swagger.json`.
 
 | Path | Description |
 |------|-------------|
-| `/` | Index page with navigation links and README |
-| `/source/` | Source code browser with directory listing, code view, media serving |
+| `/` | Interactive root page: sidebar (filetype-tagged source tree), multi-panel main, bottom dock, expandable footer |
+| `/source/` | Source browser (HTML page; routes to `/source/tree.json` + `/source/raw/<path>` for data) |
+| `/source/tree.json` | JSON tree of the embedded source FS (used by the sidebar tree) |
+| `/source/raw/<path>` | Raw text contents of an embedded source file (used by the file viewer) |
 | `/docs/` | Package documentation (generated at build time from Go source via `go/doc` + `go/parser`) |
 | `/api/` | API reference (static HTML rendered from OpenAPI specs at build time) |
 | `/api/swagger.json` | Raw OpenAPI spec JSON |
-| `/server/` | Server info: runtime stats, request counters, boot/build/test logs |
+| `/server/` | Server info: runtime stats, request counters, boot/build/test logs, live wormhole panes |
+| `/wormhole/{kind}` | WebSocket stream of a named wormhole (`stdout`, `stderr`, `requests`, `boot`, `command`) |
+| `/wormhole/{kind}/pane` | Iframe HTML page that connects to `/wormhole/{kind}` and renders into a `<pre>` |
+| `/files/{path=**}` | Files service (proto defined in `proto/files/`; service implementation pending — see Plan) |
 | `/gateway/` | Raw grpc-gateway REST proxy |
+| `/static/<file>` | Embedded static assets (CSS, SVG, webp) |
+
+## Files Service
+
+The `Files` service (`proto/files/server.proto`) defines a single streaming RPC:
+
+```protobuf
+service Files {
+  rpc Get(GetRequest) returns (stream Resource) {
+    option (google.api.http) = { get: "/files/{path=**}" };
+  }
+}
+```
+
+A `Resource` is a `oneof` over `Document`, `Media`, `Data`, `Socket` — the typed-content companion to `Docs.Source` for user-uploaded / non-embedded files. **The proto is defined and codegen runs; the server-side implementation is pending** (see Plan). When implemented, it will be the consumer-facing read API for arbitrary file content (vs. `Docs.Source`, which is scoped to the repo's own embedded sources).
+
+## Wormhole Streams
+
+Anyserver provides named, in-process **wormhole** streams — fan-out broadcast pipes that any handler can write to and any HTTP/WebSocket client can subscribe to. Five kinds ship out of the box:
+
+| Kind | Source | Wire-up |
+|------|--------|---------|
+| `stdout` | `os.Stdout` redirected at boot | `wormhole.CaptureOutputs` |
+| `stderr` | `os.Stderr` redirected at boot | `wormhole.CaptureOutputs` |
+| `requests` | every HTTP request, after the response is written | `metrics.RequestCounter.SetStream` |
+| `boot` | `BOOT_STARTED` / `BOOT_COMPLETE` events | `metrics.RecordBoot*` |
+| `command` | authenticated command channel — opt-in | `wormhole.NewCommandWormhole` |
+
+HTTP routes:
+- `GET /wormhole/{kind}` — WebSocket upgrade; server pushes appended chunks to the client.
+- `GET /wormhole/{kind}/pane` — self-contained iframe HTML that connects to the WS and renders into a `<pre>`. Used by the `/server/` page and the root dock to embed live tails.
+- `GET /wormhole/{kind}?tail=N` — non-WS one-shot returning the last N entries (used by smoke tests).
+
+The **command wormhole** is special: when enabled (`Config.CommandWormhole.Enabled`), anyserver prints a one-time `COMMAND TOKEN: …` to stderr at boot, then holds a `server.BootGate` closed until a client posts the token to `/wormhole/command`. Until the gate opens, only the index, /source, /docs, /api, /server, /static, and /wormhole paths are served; everything else returns 503. This is the hook the root-page dock uses to enable the interactive COMMAND tab.
+
+## Web UI
+
+The root page (`/`) is a single interactive shell, rendered server-side from `html/template` in `anyserver.go`. Layout:
+
+- **Sidebar** — repo name + Documentation/API Reference/Server Info links + amber-masked SVG decoration + filetype-tagged file tree (JS fetches `/source/tree.json`, click loads via `/source/raw/<path>` into the file viewer)
+- **Main area** — three side-by-side panels: WORLDLY iframe (external 3D map), DOCUMENTATION iframe (`/docs/`), file viewer (CSS-counter line numbers)
+- **Dock** — collapsed to a 0-height toggle nub by default; expanded shows the wormhole console tabs (COMMAND / REQUESTS / STDOUT / STDERR — each an iframe to `/wormhole/{kind}/pane`) plus HOST/NETWORK, SERVER & APPLICATION, and SERVICE info panels
+- **Footer** — shared across every page via `internal/ui.Footer`. Always-visible base strip with status + a 6-link menu (About / Privacy / Terms / API / Docs / Accretional) and a `>>`/`<<` collapse toggle. Clicking any link opens the **frunk** below the base: a per-`<p>` content panel selected by `:target`, with a contextual submenu and a `×` close anchor.
+
+The top ticker (Home · Source · Docs · API · Server) shared by `/docs`, `/api`, `/server`, and placeholder pages lives in `internal/ui.Nav`. Same constant, every page.
+
+**Interactivity is CSS-only where possible:** the footer's expand/collapse, frunk activation, submenu switching, and menu collapse use the `:target` selector, `:has()`, and the checkbox-label trick — no JavaScript. JS only appears for things genuinely dynamic (WebSocket wormhole tails, file-tree loading, dock toggle).
+
+## Visual Regression (chrome-testing + snap)
+
+`./snap.sh` boots a headless Chrome via [chromerpc](https://github.com/accretional/chromerpc) and screenshots a running anyserver. Captured pages: `/`, `/#terms` (verifies the frunk pops under the footer), `/docs/`, `/api/`, `/server/`. PNGs land in `chrome-testing/snapshots/` and **are committed** so the repo history shows UI evolution alongside code.
+
+`chrome-testing/` is vendored from `accretional/chromerpc/chrome-testing/` — its own `snap.sh` is the per-URL primitive; the top-level `snap.sh` is an anyserver-specific multi-URL wrapper. `LET_IT_RIP.sh` calls the top-level script as a stage between smoke tests and browser-open.
 
 ## HTTP Proxy Layer
+
+_(Planned — see Phase 1d. The mechanism described below is the design target; today, gRPC services that need custom HTTP rendering hook in via `Config.ExtraHTTP`.)_
 
 Auto-generated godoc HTML is served **over HTTP only** (not via gRPC). The HTTP server handles `/docs/` paths using `docs.html` and `docs.css` templates.
 
@@ -251,6 +338,8 @@ For streaming RPCs like `Source`, SSE (Server-Sent Events) may be used to push t
 The docs UI includes navigation: header/column linking to `/source/` URLs, project-level links, and breadcrumb navigation through the source tree.
 
 ## Service Composition Pattern
+
+_(The `tools/gen.sh --inject` codegen flow below is planned — see Phase 1f / 2a. **Today**, composition is by Go API: a caller passes service registration functions through `anyserver.Config`'s `ExtraGRPC []func(*grpc.Server)`, `ExtraGateway []server.GatewayRegisterFunc`, and `ExtraHTTP func(*http.ServeMux)` fields. The codegen layer described below is the future ergonomic — direct injection works today.)_
 
 External Go modules expose a registration function:
 
@@ -351,8 +440,17 @@ If not provided, responses default to JSON serialization.
 - [x] Render `/api/` from pre-generated HTML (no JavaScript, no Swagger UI)
 - [x] Add `cmd/godochtml` tool: generates package documentation from Go source using `go/doc` + `go/parser`
 - [x] Render `/docs/` from pre-generated HTML (no JavaScript, no external tools)
+- [x] Add `wormhole/` package: named fan-out streams (`stdout`, `stderr`, `requests`, `boot`), WebSocket + iframe-pane HTTP routes, request-counter middleware writes to `requests` wormhole, stdout/stderr captured via `wormhole.CaptureOutputs` at boot
+- [x] Add token-authenticated `command` wormhole + `server.BootGate`: server holds non-allowlisted routes at 503 until a client posts the boot token, enabling secure interactive command sessions from the dock
+- [x] Build interactive root page: sidebar (filetype-tagged source tree, plato/cubist SVG decoration), multi-panel main (Worldly iframe / `/docs` iframe / file viewer), bottom dock with live wormhole consoles + host/server/service info panels
+- [x] Add shared `internal/ui` package: `Nav` (top ticker) and `Footer` (expandable all-footer with frunk) used by every page — CSS-only via `:target` + `:has()` + checkbox-label trick
+- [x] Site-wide amber theme: `scrollbar-color` on `html`, `.iframe-pane` class for embedded iframes, `a[target="_blank"]::after { content: '↗' }`; wormhole pane templates load `/static/base.css` so iframe scrollbars inherit
+- [x] Add `chrome-testing/` (vendored from `accretional/chromerpc`) + top-level `snap.sh` wrapper that captures `/`, `/#terms`, `/docs`, `/api`, `/server`. Snapshots committed to `chrome-testing/snapshots/` for visual progress tracking
+- [x] Make `LET_IT_RIP.sh` non-blocking: `nohup`-detach the server, exit after snap, `lsof -sTCP:LISTEN` so re-runs don't kill browser client connections
+- [x] Define `Files` proto service (`proto/files/server.proto` + Resource/Document/Media/Data/Socket sub-protos) and run codegen
+- [ ] **1c.** Implement `Files` service: server-side `Get(path) -> stream Resource` for arbitrary (non-embedded) file content, mounted at `/files/{path=**}`
 - [ ] **1d.** Build full HTTP proxy layer: `HTTP.textproto` mechanism based on httprpc's `HTTPResponse`/`HTTPResponseChunk`
-- [ ] **1f.** Add `tools/gen.sh` support for auto-generating service registration by scanning `*_grpc.pb.go`
+- [ ] **1f.** Add `tools/gen.sh` support for auto-generating service registration by scanning `*_grpc.pb.go` (today: `services.go` is a declarative list, but `gen.sh` doesn't consume it yet — composition is direct via `Config.ExtraGRPC` etc.)
 
 ### Phase 2: Service composition / linking
 - [ ] **2a.** Design service injection: `tools/gen.sh --inject /path/to/module` clones external module, discovers its `*_grpc.pb.go` files, extracts `RegisterXyzServer()` calls, auto-generates the wiring in `services.go`. Each injected service can optionally provide `HTTP.textproto` for custom HTTP rendering. Avoid petros's wrapper pattern where possible — prefer direct registration

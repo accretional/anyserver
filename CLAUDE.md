@@ -20,6 +20,10 @@ Quick `go build ./...` or `go vet ./...` during development to catch compile err
 - `cmd/godochtml/` — generates package documentation HTML from Go source using `go/doc` (run by build.sh)
 - `cmd/logpb/` — serializes stdout to BuildLog/TestLog binarypb (run by build.sh and test.sh)
 
+**Embed staging dirs:** `cmd/anyserver/source/` and `cmd/anyserver/static/` are populated by `build.sh` (`rsync` of the repo + `cp static/*`) and consumed by the `go:embed all:source` / `go:embed all:static` directives in `cmd/anyserver/main.go`. **Do not hand-edit files under `cmd/anyserver/source/` or `cmd/anyserver/static/`** — edit the top-level sources and re-run `build.sh`. Both dirs are listed in `.gitignore`.
+
+**Shared page chrome:** `internal/ui/{nav,footer}.go` exports `Nav` and `Footer` const strings used by every page template (index, docs, api, server, placeholder). When you add a new page, concat `ui.Nav` and `ui.Footer` into the template — do not re-inline the markup. Footer/nav styling lives in `static/base.css`.
+
 **README is a plan/roadmap.** Do NOT remove, rewrite, or condense sections without explicit approval. When adding new work, update existing sections — do not reorganize or trim.
 
 ## Web UI philosophy

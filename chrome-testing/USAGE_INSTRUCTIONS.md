@@ -59,6 +59,6 @@ For multi-example projects, the typical flow is:
 
 ## Notes for agents and automated workflows
 
-- The script handles handles Chrome discovery, binary building, port allocation, and cleanup on its own.
+- The script handles Chrome discovery, binary building, port allocation, and cleanup on its own.
 - The script exits non-zero on any failure.
 - Screenshots open automatically after capture for local/interactive runs.

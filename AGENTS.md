@@ -28,6 +28,14 @@ All validation goes through these scripts. Never run go test/build ad-hoc as fin
 - `cmd/godochtml/` — generates package documentation HTML from Go source using `go/doc` (invoked by build.sh)
 - `cmd/logpb/` — captures stdout as BuildLog/TestLog protocol buffer binary (invoked by build.sh and test.sh)
 
+## Shared page chrome
+
+`internal/ui/` is the single source of truth for the shared top nav and footer used across every server-rendered page:
+- `internal/ui/nav.go` — `Nav` const, the top ticker (Home · Source · Docs · API · Server)
+- `internal/ui/footer.go` — `Footer` const, the all-footer (status strip + menu + expandable frunk)
+
+When adding a new page, **import `internal/ui` and concat `ui.Nav` / `ui.Footer` into the template** — do not re-inline the markup. Any styling tweaks for shared chrome belong in `static/base.css` (footer + scrollbar + cross-page primitives) or `static/docs.css` (non-app pages).
+
 ## Important
 
 The README is a living plan/roadmap. Do NOT remove or condense sections without explicit approval from the project owners.
