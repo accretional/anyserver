@@ -360,8 +360,9 @@ const indexTemplate = `<!DOCTYPE html>
   </div>
 </div>
 
-<div class="dock expanded" id="dock">
-  <button class="dock-toggle" id="dockToggle">▼</button>
+<div class="dock">
+  <input type="checkbox" id="dock-collapse" class="dock-collapse-toggle" aria-hidden="true">
+  <label for="dock-collapse" class="dock-toggle" aria-label="Toggle dock"></label>
   <div class="dock-inner">
     <div class="grid">
       <div class="panel" id="pConsole">
@@ -385,7 +386,7 @@ const indexTemplate = `<!DOCTYPE html>
       </div>
 
       <div class="panel" id="pCams">
-        <div class="panel-header"><span>Host / Network</span><span class="ico" onclick="this.closest('.panel').classList.toggle('collapsed')">±</span></div>
+        <div class="panel-header"><span>Host / Network</span><label class="panel-header-toggle" aria-label="Toggle panel"><input type="checkbox" class="panel-collapse-toggle" aria-hidden="true"></label></div>
         <div class="panel-body">
           <div class="cam">
             <div>
@@ -427,7 +428,7 @@ const indexTemplate = `<!DOCTYPE html>
       </div>
 
       <div class="panel" id="pDeliv">
-        <div class="panel-header"><span>Server &amp; Application</span><span class="ico" onclick="this.closest('.panel').classList.toggle('collapsed')">±</span></div>
+        <div class="panel-header"><span>Server &amp; Application</span><label class="panel-header-toggle" aria-label="Toggle panel"><input type="checkbox" class="panel-collapse-toggle" aria-hidden="true"></label></div>
         <div class="panel-body">
           <div class="deliv">
             <div class="drow"><div class="dname">Server Setup</div><div class="dval"><b>84%</b></div></div>
@@ -447,7 +448,7 @@ const indexTemplate = `<!DOCTYPE html>
       </div>
 
       <div class="panel" id="pInfo">
-        <div class="panel-header"><span>Service</span><span class="ico" onclick="this.closest('.panel').classList.toggle('collapsed')">±</span></div>
+        <div class="panel-header"><span>Service</span><label class="panel-header-toggle" aria-label="Toggle panel"><input type="checkbox" class="panel-collapse-toggle" aria-hidden="true"></label></div>
         <div class="panel-body kv-list">
           <div class="kv"><span class="name">Host</span> <span class="val" id="inf-host">—</span></div>
           <div class="kv"><span class="name">OS</span> <span class="val" id="inf-os">—</span></div>
@@ -465,10 +466,6 @@ const indexTemplate = `<!DOCTYPE html>
 ` + ui.Footer + `
 
 <script>
-// Dock toggle
-var dock=document.getElementById('dock'),toggle=document.getElementById('dockToggle');
-toggle.addEventListener('click',function(){dock.classList.toggle('expanded');toggle.textContent=dock.classList.contains('expanded')?'▼':'▲'});
-
 // Console tabs — only respond to unlocked tabs
 document.getElementById('consoleTabs').addEventListener('click',function(e){
   var tab=e.target.closest('.tab'); if(!tab||tab.classList.contains('locked')) return;

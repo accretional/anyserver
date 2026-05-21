@@ -139,16 +139,33 @@ body.page-shell > .all-footer { flex-shrink: 0; }
     font-weight: 600;
     font-size: 10px;
 }
-.panel-header .ico {
+/* Pure-CSS panel collapse via label-wraps-input checkbox trick.
+ *
+ * Each .panel-header contains:
+ *   <label class="panel-header-toggle">
+ *     <input type="checkbox" class="panel-collapse-toggle">
+ *   </label>
+ *
+ * The label IS the visible nub (glyph via ::before); the input is
+ * display:none.  Wrapping the input in the label associates them
+ * implicitly — no per-panel IDs needed.  :has() on the enclosing
+ * .panel detects the checked state and hides the body.
+ */
+.panel-header-toggle {
     cursor: pointer;
     opacity: .8;
-    text-transform: lowercase;
     border: 1px solid var(--stroke);
     padding: 0 4px;
     border-radius: 2px;
     background: rgba(0,0,0,0.4);
+    line-height: 1;
+    user-select: none;
+    color: inherit;
 }
-.panel-header .ico:hover { opacity: 1; border-color: var(--amber); }
+.panel-header-toggle:hover { opacity: 1; border-color: var(--amber); }
+.panel-collapse-toggle { display: none; }
+.panel-header-toggle::before { content: '\2212'; }  /* − minus */
+.panel:has(.panel-collapse-toggle:checked) .panel-header-toggle::before { content: '+'; }
 .panel-body {
     flex: 1;
     min-height: 0;
@@ -158,7 +175,7 @@ body.page-shell > .all-footer { flex-shrink: 0; }
     gap: 5px;
     overflow: hidden;
 }
-.panel.collapsed .panel-body { display: none; }
+.panel:has(.panel-collapse-toggle:checked) .panel-body { display: none; }
 
 /* ── Tabs ───────────────────────────────────────────────── */
 
