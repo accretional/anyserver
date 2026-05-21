@@ -3,6 +3,7 @@ package docs
 import (
 	"encoding/json"
 	"fmt"
+	"html"
 	"html/template"
 	"io/fs"
 	"net/http"
@@ -56,7 +57,11 @@ func HTTPHandler(sourceFS fs.FS, docsFS fs.FS, repoName string, readmeHTML templ
 		json.NewEncoder(w).Encode(walk(".", 0))
 	})
 
-	// Raw file content for inline viewer
+	// Raw file content for inline viewer.  Returns HTML with one
+	// <span class="line"> per line so the CSS counter on .file-panel
+	// .line::before can render gutter line numbers and the
+	// .file-panel::after total — without any client-side line
+	// splitting.  Content is HTML-escaped per line.
 	mux.HandleFunc("/source/raw/", func(w http.ResponseWriter, r *http.Request) {
 		path := strings.TrimPrefix(r.URL.Path, "/source/raw/")
 		path = normalizePath(path)
@@ -65,8 +70,12 @@ func HTTPHandler(sourceFS fs.FS, docsFS fs.FS, repoName string, readmeHTML templ
 			http.NotFound(w, r)
 			return
 		}
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		w.Write(data)
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		fmt.Fprint(w, `<pre>`)
+		for _, line := range strings.Split(string(data), "\n") {
+			fmt.Fprintf(w, `<span class="line">%s</span>`, html.EscapeString(line))
+		}
+		fmt.Fprint(w, `</pre>`)
 	})
 
 	// Source browsing — redirect to root page with sidebar

@@ -319,8 +319,11 @@ const indexTemplate = `<!DOCTYPE html>
 <body class="app">
 <div class="main-area">
   <aside class="sidebar">
-    <div class="panel">
-      <div class="panel-head"><a href="/">{{.RepoName}}</a></div>
+    <details class="panel" open>
+      <summary class="panel-header">
+        <span class="panel-name"><a href="/">{{.RepoName}}</a></span>
+        <span class="panel-interface"></span>
+      </summary>
       <div class="sidebar-nav">
         <div class="sidebar-nav-row">
           <a href="/docs/">Documentation</a>
@@ -329,34 +332,46 @@ const indexTemplate = `<!DOCTYPE html>
         <div class="sidebar-nav-center"><a href="/server/">Server Info</a></div>
       </div>
       <div class="plato" role="img" aria-label="cubist"></div>
-    </div>
-    <div class="panel tree-panel">
-      <div class="panel-head">Filesystem</div>
-      <ul class="tree" id="tree"></ul>
-    </div>
+    </details>
+    <details class="panel tree-panel" open>
+      <summary class="panel-header">
+        <span class="panel-name">Filesystem</span>
+        <span class="panel-interface"></span>
+      </summary>
+      <div class="panel-body tree-body">
+        <ul class="tree" id="tree"></ul>
+      </div>
+    </details>
     <div class="panel search-panel">
       <input class="search" id="q" placeholder="search code...">
     </div>
   </aside>
   <div class="content" id="mainContent">
-    <div class="panel" id="worldlyPanel">
-      <div class="panel-head">
-        <span class="file-name">Worldly</span>
-        <span class="file-info">https://worldlycre.com</span>
+    <details class="panel" id="worldlyPanel" open>
+      <summary class="panel-header">
+        <span class="panel-name">Worldly</span>
+        <span class="panel-interface">https://worldlycre.com</span>
+      </summary>
+      <div class="panel-body iframe-body">
+        <iframe src="https://worldlycre.com" title="Worldly CRE" loading="lazy"></iframe>
       </div>
-      <iframe src="https://worldlycre.com" title="Worldly CRE" loading="lazy"></iframe>
-    </div>
-    <div class="panel" id="docsPanel">
-      <div class="panel-head">
-        <span class="file-name">Documentation</span>
-        <span class="file-info">/docs/</span>
+    </details>
+    <details class="panel" id="docsPanel" open>
+      <summary class="panel-header">
+        <span class="panel-name">Documentation</span>
+        <span class="panel-interface">/docs/</span>
+      </summary>
+      <div class="panel-body iframe-body">
+        <iframe src="/docs/" title="Documentation" loading="lazy"></iframe>
       </div>
-      <iframe src="/docs/" title="Documentation" loading="lazy"></iframe>
-    </div>
-    <div class="panel file-panel" id="filePanel">
-      <div class="file-head"><span class="file-name" id="fileName">README.md</span><span class="file-info" id="fileInfo"></span></div>
-      <div class="file-body" id="fileBody"></div>
-    </div>
+    </details>
+    <details class="panel file-panel" id="filePanel" open>
+      <summary class="panel-header">
+        <span class="panel-name" id="fileName">README.md</span>
+        <span class="panel-interface" id="fileInfo"></span>
+      </summary>
+      <div class="panel-body file-body" id="fileBody"></div>
+    </details>
   </div>
 </div>
 
@@ -365,28 +380,34 @@ const indexTemplate = `<!DOCTYPE html>
   <label for="dock-collapse" class="dock-toggle" aria-label="Toggle dock"></label>
   <div class="dock-inner">
     <div class="grid">
-      <div class="panel" id="pConsole">
-        <div class="console-bar" id="consoleTabs">
-          <div class="tab locked active" data-pane="command">command</div>
-          <div class="tab locked" data-pane="requests">requests</div>
-          <div class="tab locked" data-pane="stdout">stdout</div>
-          <div class="tab locked" data-pane="stderr">stderr</div>
-          <span class="console-auth" id="consoleAuth">
-            <input type="text" id="cmd-token" placeholder="token" autocomplete="off" spellcheck="false">
-            <button id="cmd-btn" onclick="doConsoleAuth()">connect</button>
-            <span id="cmd-status"></span>
+      <details class="panel console-panel" id="pConsole" open>
+        <summary class="panel-header">
+          <span class="panel-name">Console</span>
+          <span class="panel-interface" id="consoleTabs">
+            <div class="tab locked active" data-pane="command">command</div>
+            <div class="tab locked" data-pane="requests">requests</div>
+            <div class="tab locked" data-pane="stdout">stdout</div>
+            <div class="tab locked" data-pane="stderr">stderr</div>
+            <span class="console-auth" id="consoleAuth">
+              <input type="text" id="cmd-token" placeholder="token" autocomplete="off" spellcheck="false">
+              <button id="cmd-btn" onclick="doConsoleAuth()">connect</button>
+              <span id="cmd-status"></span>
+            </span>
           </span>
-        </div>
-        <div class="tab-panes" id="consolePanes">
+        </summary>
+        <div class="panel-body tab-panes" id="consolePanes">
           <div class="tab-pane active" data-pane="command"><iframe data-src="/wormhole/command/pane"></iframe></div>
           <div class="tab-pane" data-pane="requests"><iframe data-src="/wormhole/requests/pane"></iframe></div>
           <div class="tab-pane" data-pane="stdout"><iframe data-src="/wormhole/stdout/pane"></iframe></div>
           <div class="tab-pane" data-pane="stderr"><iframe data-src="/wormhole/stderr/pane"></iframe></div>
         </div>
-      </div>
+      </details>
 
-      <div class="panel" id="pCams">
-        <div class="panel-header"><span>Host / Network</span><label class="panel-header-toggle" aria-label="Toggle panel"><input type="checkbox" class="panel-collapse-toggle" aria-hidden="true"></label></div>
+      <details class="panel" id="pCams" open>
+        <summary class="panel-header">
+          <span class="panel-name">Host / Network</span>
+          <span class="panel-interface"></span>
+        </summary>
         <div class="panel-body">
           <div class="cam">
             <div>
@@ -425,10 +446,13 @@ const indexTemplate = `<!DOCTYPE html>
             </div>
           </div>
         </div>
-      </div>
+      </details>
 
-      <div class="panel" id="pDeliv">
-        <div class="panel-header"><span>Server &amp; Application</span><label class="panel-header-toggle" aria-label="Toggle panel"><input type="checkbox" class="panel-collapse-toggle" aria-hidden="true"></label></div>
+      <details class="panel" id="pDeliv" open>
+        <summary class="panel-header">
+          <span class="panel-name">Server &amp; Application</span>
+          <span class="panel-interface"></span>
+        </summary>
         <div class="panel-body">
           <div class="deliv">
             <div class="drow"><div class="dname">Server Setup</div><div class="dval"><b>84%</b></div></div>
@@ -445,10 +469,13 @@ const indexTemplate = `<!DOCTYPE html>
             </div>
           </div>
         </div>
-      </div>
+      </details>
 
-      <div class="panel" id="pInfo">
-        <div class="panel-header"><span>Service</span><label class="panel-header-toggle" aria-label="Toggle panel"><input type="checkbox" class="panel-collapse-toggle" aria-hidden="true"></label></div>
+      <details class="panel" id="pInfo" open>
+        <summary class="panel-header">
+          <span class="panel-name">Service</span>
+          <span class="panel-interface"></span>
+        </summary>
         <div class="panel-body kv-list">
           <div class="kv"><span class="name">Host</span> <span class="val" id="inf-host">—</span></div>
           <div class="kv"><span class="name">OS</span> <span class="val" id="inf-os">—</span></div>
@@ -458,7 +485,7 @@ const indexTemplate = `<!DOCTYPE html>
           <div class="kv"><span class="name">Heap</span> <span class="val" id="inf-heap">—</span></div>
           <div class="kv"><span class="name">Wormholes</span> <span class="val" id="inf-wh">—</span></div>
         </div>
-      </div>
+      </details>
     </div>
   </div>
 </div>
@@ -466,13 +493,20 @@ const indexTemplate = `<!DOCTYPE html>
 ` + ui.Footer + `
 
 <script>
-// Console tabs — only respond to unlocked tabs
+// Console tabs — only respond to unlocked tabs.  stopPropagation
+// prevents the click from bubbling up to the <summary> and toggling
+// the whole console panel closed.  The auth input/button stop their
+// own clicks via the same handler at the consoleAuth container.
 document.getElementById('consoleTabs').addEventListener('click',function(e){
+  e.stopPropagation();
   var tab=e.target.closest('.tab'); if(!tab||tab.classList.contains('locked')) return;
   var pane=tab.dataset.pane;
   document.querySelectorAll('#consoleTabs .tab').forEach(function(t){t.classList.toggle('active',t.dataset.pane===pane)});
   document.querySelectorAll('#consolePanes .tab-pane').forEach(function(p){p.classList.toggle('active',p.dataset.pane===pane)});
 });
+// Also stop bubbling on the consoleAuth input/button so typing or
+// clicking 'connect' doesn't close the console summary.
+document.getElementById('consoleAuth').addEventListener('click',function(e){e.stopPropagation();});
 
 // Unlock console tabs and load wormhole iframes
 function unlockConsole(){
@@ -568,31 +602,22 @@ function doConsoleAuth(){
   });
 })();
 
-// Load file into main content area
+// Load file into main content area.  Server-rendered HTML — the
+// /source/raw/ endpoint returns <pre><span class="line">...</span>...
+// already wrapped, so we just assign innerHTML.  CSS counter on
+// .file-panel .line::before renders the gutter numbers and
+// .file-panel::after renders the total ("254 lines").
 function loadFile(path,name){
   var nameEl=document.getElementById('fileName');
-  var infoEl=document.getElementById('fileInfo');
   var body=document.getElementById('fileBody');
   nameEl.textContent=name;
-  infoEl.textContent='loading...';
   body.innerHTML='';
   fetch('/source/raw/'+path).then(function(r){
     if(!r.ok) throw new Error('not found');
     return r.text();
-  }).then(function(text){
-    var lines=text.split('\n');
-    infoEl.textContent=lines.length+' lines';
-    var pre=document.createElement('pre');
-    lines.forEach(function(line){
-      var span=document.createElement('span');
-      span.className='line';
-      span.textContent=line;
-      pre.appendChild(span);
-    });
-    body.innerHTML='';
-    body.appendChild(pre);
+  }).then(function(html){
+    body.innerHTML=html;
   }).catch(function(){
-    infoEl.textContent='error';
     body.innerHTML='<div class="file-error">Could not load '+escapeHtml(path)+'</div>';
   });
 }

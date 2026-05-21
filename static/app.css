@@ -32,7 +32,7 @@ body.app {
     overflow: hidden;
 }
 .sidebar .panel { border: none; border-bottom: 1px solid var(--stroke); background: transparent; flex-shrink: 0; }
-.sidebar .panel.tree-panel { border-bottom: none; flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.sidebar .panel.tree-panel { border-bottom: none; flex: 1; min-height: 0; }
 .sidebar .panel.search-panel { flex-shrink: 0; border-top: 1px solid var(--stroke); border-bottom: none; padding: 0; }
 /* Sidebar nav (Documentation / API / Server Info) — was inline-styled. */
 .sidebar-nav {
@@ -60,7 +60,7 @@ body.app {
 
 /* ── Filesystem tree ────────────────────────────────────── */
 
-.tree { list-style: none; padding: 4px 8px; overflow-y: auto; overflow-x: hidden; flex: 1; font-size: 11px; line-height: 1.6; }
+.tree { list-style: none; padding: 4px 8px; font-size: 11px; line-height: 1.6; }
 .tree li { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; padding: 0 2px; }
 .tree li:hover { background: rgba(245,158,11,.08); }
 .tree li .sz { color: var(--muted); margin-left: 4px; font-size: 10px; }
@@ -145,24 +145,32 @@ body.app {
 .dock-inner { height: 100%; padding: 8px; overflow: hidden; }
 #dock-collapse:checked ~ .dock-inner { display: none; }
 
-.grid { display: grid; grid-template-columns: 1fr 210px 220px 260px; gap: 8px; height: 100%; }
-
-/* ── Console bar ────────────────────────────────────────── */
-
-.console-bar {
-    display: flex;
-    align-items: center;
-    gap: 0;
-    border-bottom: 1px solid var(--stroke);
-    background: var(--amber-bg);
-    flex-shrink: 0;
-    height: 26px;
+.grid {
+    display: grid;
+    grid-template-columns: 1fr 210px 220px 260px;
+    grid-template-rows: 1fr;     /* clamp panels to dock height; overflow scrolls inside */
+    gap: 8px;
+    height: 100%;
+    min-height: 0;
 }
-.console-auth { margin-left: auto; display: flex; align-items: center; gap: 6px; padding-right: 8px; }
-.console-auth input { background: #000; color: var(--text); border: 1px solid var(--stroke); padding: 2px 6px; font-family: inherit; font-size: 10px; width: 10rem; border-radius: 2px; }
-.console-auth button { background: rgba(245,158,11,.15); color: var(--amber); border: 1px solid var(--stroke); padding: 2px 8px; border-radius: 2px; cursor: pointer; font-family: inherit; font-size: 10px; }
-.console-auth button:hover { background: rgba(245,158,11,.25); }
-.console-auth span { font-size: 10px; color: var(--muted); }
+.grid > .panel { min-height: 0; }
+
+/* ── Console panel ──────────────────────────────────────── */
+/*
+ * The console is just a .panel with the .console-panel modifier.
+ * Its tab strip (COMMAND / REQUESTS / STDOUT / STDERR) and the
+ * token + connect auth controls live inside the standard
+ * .panel-interface slot of the unified .panel-header.
+ *
+ * .console-panel keeps its own width override (it takes the 1fr
+ * column of the dock grid — the other panels are fixed widths).
+ */
+.console-panel .panel-interface { gap: 0; }
+.console-panel .console-auth { margin-left: auto; display: flex; align-items: center; gap: 6px; padding-right: 4px; }
+.console-panel .console-auth input { background: #000; color: var(--text); border: 1px solid var(--stroke); padding: 2px 6px; font-family: inherit; font-size: 10px; width: 10rem; border-radius: 2px; }
+.console-panel .console-auth button { background: rgba(245,158,11,.15); color: var(--amber); border: 1px solid var(--stroke); padding: 2px 8px; border-radius: 2px; cursor: pointer; font-family: inherit; font-size: 10px; }
+.console-panel .console-auth button:hover { background: rgba(245,158,11,.25); }
+.console-panel .console-auth span { font-size: 10px; color: var(--muted); }
 
 /* ── Dock panel widgets ─────────────────────────────────── */
 
@@ -212,14 +220,8 @@ body.app {
 
 .content { flex-direction: row; padding: 8px; gap: 8px; position: relative; }
 .content > .panel { flex: 1 1 0; min-width: 0; }
-/* Any iframe directly inside a panel fills it with a black background
- * and no border — was inline-styled per call site. */
-.panel > iframe {
-    flex: 1 1 auto;
-    width: 100%;
-    border: 0;
-    background: #000;
-}
+/* (Iframe-in-panel sizing is handled by .panel-body.iframe-body in
+ * base.css — one rule applies to every panel that holds an iframe.) */
 
 
 /* ── Sidebar plato decoration ───────────────────────────── */
