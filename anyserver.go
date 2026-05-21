@@ -13,6 +13,7 @@ import (
 
 	"github.com/accretional/anyserver/internal/docs"
 	internalmetrics "github.com/accretional/anyserver/internal/metrics"
+	"github.com/accretional/anyserver/internal/ui"
 	appmetrics "github.com/accretional/anyserver/metrics"
 	docspb "github.com/accretional/anyserver/proto/docs"
 	metricspb "github.com/accretional/anyserver/proto/metrics"
@@ -330,10 +331,13 @@ const indexTemplate = `<!DOCTYPE html>
     <div class="panel">
       <div class="panel-head"><a href="/" style="color:var(--amber);text-decoration:none">{{.RepoName}}</a></div>
       <div style="padding:6px 8px;display:flex;flex-direction:column;gap:2px;font-size:11px">
-        <div><a href="/docs/" style="color:var(--amber);text-decoration:none">Documentation</a></div>
-        <div><a href="/api/" style="color:var(--amber);text-decoration:none">API Reference</a></div>
-        <div><a href="/server/" style="color:var(--amber);text-decoration:none">Server Info</a></div>
+        <div style="display:flex;gap:14px;justify-content:center">
+          <a href="/docs/" style="color:var(--amber);text-decoration:none">Documentation</a>
+          <a href="/api/" style="color:var(--amber);text-decoration:none">API Reference</a>
+        </div>
+        <div style="text-align:center"><a href="/server/" style="color:var(--amber);text-decoration:none">Server Info</a></div>
       </div>
+      <div class="plato" role="img" aria-label="cubist"></div>
     </div>
     <div class="panel tree-panel">
       <div class="panel-head">Filesystem</div>
@@ -344,6 +348,20 @@ const indexTemplate = `<!DOCTYPE html>
     </div>
   </aside>
   <div class="content" id="mainContent">
+    <div class="panel" id="worldlyPanel">
+      <div class="panel-head" style="display:flex;gap:12px;align-items:baseline">
+        <span class="file-name">Worldly</span>
+        <span style="color:var(--muted);font-weight:400;text-transform:none;letter-spacing:normal">https://worldlycre.com</span>
+      </div>
+      <iframe src="https://worldlycre.com" title="Worldly CRE" loading="lazy" style="flex:1;width:100%;border:0;background:#000"></iframe>
+    </div>
+    <div class="panel" id="docsPanel">
+      <div class="panel-head" style="display:flex;gap:12px;align-items:baseline">
+        <span class="file-name">Documentation</span>
+        <span style="color:var(--muted);font-weight:400;text-transform:none;letter-spacing:normal">/docs/</span>
+      </div>
+      <iframe src="/docs/" title="Documentation" loading="lazy" style="flex:1;width:100%;border:0;background:#000"></iframe>
+    </div>
     <div class="panel file-panel" id="filePanel">
       <div class="file-head"><span class="file-name" id="fileName">README.md</span><span class="file-info" id="fileInfo"></span></div>
       <div class="file-body" id="fileBody"></div>
@@ -453,10 +471,7 @@ const indexTemplate = `<!DOCTYPE html>
   </div>
 </div>
 
-<footer class="site-footer">
-  <span><b style="color:var(--amber)">{{.RepoName}}</b> — Status: <b style="color:var(--amber)">Alpha</b> — Built 2026</span>
-  <span>Free &amp; Open Source by <a href="https://accretional.com/">Accretional</a> © <a href="#">Privacy</a> <a href="#">Terms</a></span>
-</footer>
+` + ui.Footer + `
 
 <script>
 // Dock toggle
@@ -541,8 +556,12 @@ function doConsoleAuth(){
           li.appendChild(sub);
         }
       } else {
+        var dot=item.name.lastIndexOf('.');
+        var ext=(dot>0)?item.name.slice(dot+1).toLowerCase():'';
+        if(ext){li.setAttribute('data-ext',ext);li.classList.add('file','file-'+ext);}
+        li.id=path+'-filelink';
         var a=document.createElement('a');
-        a.href='#';
+        a.href='#'+path+'-filelink';
         a.textContent=item.name;
         a.onclick=function(e){e.preventDefault();loadFile(path,item.name);};
         li.appendChild(a);
@@ -649,7 +668,7 @@ const placeholderTemplate = `<!DOCTYPE html>
 <link rel="stylesheet" href="/static/base.css">
 <link rel="stylesheet" href="/static/docs.css">
 </head>
-<body>
+<body class="page-shell">
 ` + navHTML + `
 <main class="content">
   <section class="index-section">
@@ -657,6 +676,7 @@ const placeholderTemplate = `<!DOCTYPE html>
     <p>{{.Message}}</p>
   </section>
 </main>
+` + ui.Footer + `
 </body>
 </html>`
 
@@ -669,11 +689,12 @@ const docsPageTemplate = `<!DOCTYPE html>
 <link rel="stylesheet" href="/static/base.css">
 <link rel="stylesheet" href="/static/docs.css">
 </head>
-<body>
+<body class="page-shell">
 ` + navHTML + `
 <main class="content">
 {{.Content}}
 </main>
+` + ui.Footer + `
 </body>
 </html>`
 
@@ -686,10 +707,11 @@ const apiPageTemplate = `<!DOCTYPE html>
 <link rel="stylesheet" href="/static/base.css">
 <link rel="stylesheet" href="/static/docs.css">
 </head>
-<body>
+<body class="page-shell">
 ` + navHTML + `
 <main class="content">
 {{.Content}}
 </main>
+` + ui.Footer + `
 </body>
 </html>`

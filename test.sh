@@ -12,7 +12,7 @@ TEST_LOG="/tmp/anyserver_test.log"
 cleanup() {
     echo ""
     echo "=== Cleaning up ==="
-    PIDS=$(lsof -ti ":$TEST_PORT" 2>/dev/null || true)
+    PIDS=$(lsof -ti ":$TEST_PORT" -sTCP:LISTEN 2>/dev/null || true)
     if [ -n "$PIDS" ]; then
         echo "$PIDS" | xargs kill -9 2>/dev/null || true
     fi
@@ -32,9 +32,9 @@ do_test() {
     # --- Pre-run cleanup ---
 
     echo "--- Pre-run cleanup ---"
-    if lsof -ti ":$TEST_PORT" 2>/dev/null; then
+    if lsof -ti ":$TEST_PORT" -sTCP:LISTEN 2>/dev/null; then
         echo "killing existing process on port $TEST_PORT"
-        lsof -ti ":$TEST_PORT" | xargs kill -9 2>/dev/null || true
+        lsof -ti ":$TEST_PORT" -sTCP:LISTEN | xargs kill -9 2>/dev/null || true
     else
         echo "port $TEST_PORT is free"
     fi

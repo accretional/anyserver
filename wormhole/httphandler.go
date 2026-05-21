@@ -241,11 +241,13 @@ func serveTail(w http.ResponseWriter, r *http.Request, wh *Wormhole, tailStr str
 const paneTemplate = `<!DOCTYPE html>
 <html><head>
 <meta charset="UTF-8">
+<link rel="stylesheet" href="/static/base.css">
 <style>
-* { margin:0; padding:0; box-sizing:border-box; }
-html, body { height:100%; background:#000; color:#e0e0e0; font-family:"SF Mono",Menlo,Consolas,monospace; font-size:12px; }
+/* Wormhole pane runs inside an iframe.  base.css gives us body
+ * styling + the amber scrollbar; everything below is layout only. */
+html, body { height:100%; }
 #out { padding:8px; white-space:pre-wrap; word-break:break-all; line-height:1.4; }
-.status { position:fixed; top:4px; right:8px; font-size:10px; opacity:0.5; }
+.status { position:fixed; top:4px; right:8px; font-size:10px; color:var(--muted); }
 </style>
 </head><body>
 <div class="status" id="st"></div>
@@ -278,14 +280,16 @@ connect();
 const commandPaneTemplate = `<!DOCTYPE html>
 <html><head>
 <meta charset="UTF-8">
+<link rel="stylesheet" href="/static/base.css">
 <style>
-* { margin:0; padding:0; box-sizing:border-box; }
-html, body { height:100%; background:#000; color:#e0e0e0; font-family:"SF Mono",Menlo,Consolas,monospace; font-size:12px; display:flex; flex-direction:column; }
+/* Command pane runs inside an iframe.  base.css gives us body
+ * styling + the amber scrollbar; everything below is layout only. */
+html, body { height:100%; display:flex; flex-direction:column; }
 #console { flex:1; overflow-y:auto; padding:8px; }
 #out { white-space:pre-wrap; word-break:break-all; line-height:1.4; }
-#cursor { display:inline-block; width:7px; height:14px; background:#e0e0e0; animation:blink 1s step-end infinite; vertical-align:text-bottom; }
+#cursor { display:inline-block; width:7px; height:14px; background:var(--amber); animation:blink 1s step-end infinite; vertical-align:text-bottom; }
 @keyframes blink { 50% { opacity:0; } }
-#pos { position:fixed; bottom:4px; right:8px; font-size:10px; opacity:0.4; }
+#pos { position:fixed; bottom:4px; right:8px; font-size:10px; color:var(--muted); }
 .hidden { display:none; }
 </style>
 </head><body>

@@ -83,36 +83,44 @@ body.app {
 
 /* ── Dock (bottom console) ──────────────────────────────── */
 
+/* Collapsed dock = 0 height; only the toggle nub sits above. */
 .dock {
     position: relative;
-    height: 110px;
+    height: 0;
     background: rgba(5,5,5,.94);
     border-top: 1px solid var(--amber);
     box-shadow: 0 -8px 30px rgba(0,0,0,.8);
     transition: height .28s ease;
     z-index: 50;
     flex-shrink: 0;
+    overflow: visible;
 }
 .dock.expanded { height: 320px; }
+
 .dock-toggle {
     position: absolute;
-    top: -14px;
+    top: -1.5rem;
     left: 50%;
     transform: translateX(-50%);
-    width: 46px;
-    height: 16px;
+    width: 28px;
+    height: 1.5rem;
     background: #000;
     border: 1px solid var(--amber);
     border-bottom: none;
-    border-radius: 4px 4px 0 0;
+    border-radius: 12px 12px 0 0;
     color: var(--amber);
-    font-size: 10px;
-    line-height: 14px;
+    font-size: 11px;
+    line-height: 1.5rem;
+    text-align: center;
     cursor: pointer;
-    letter-spacing: .1em;
+    letter-spacing: .05em;
+    z-index: 51;
 }
-.dock-toggle:hover { background: #0a0a0a; }
-.dock-inner { height: 100%; padding: 8px; overflow: hidden; }
+.dock-toggle:hover { background: var(--amber-bg); }
+
+.dock-inner { height: 100%; padding: 8px; overflow: hidden; display: none; }
+.dock.expanded .dock-inner { display: block; }
+
 .grid { display: grid; grid-template-columns: 1fr 210px 220px 260px; gap: 8px; height: 100%; }
 
 /* ── Console bar ────────────────────────────────────────── */
@@ -164,10 +172,76 @@ body.app {
 .bar { height: 4px; background: rgba(245,158,11,.18); border: 1px solid rgba(245,158,11,.3); position: relative; overflow: hidden; }
 .bar > i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--amber); width: 0; }
 
+/* ── Multi-panel main content ───────────────────────────── */
+
+.content { flex-direction: row; padding: 8px; gap: 8px; position: relative; }
+.content > .panel { flex: 1 1 0; min-width: 0; }
+.content > .panel iframe {
+    flex: 1 1 auto;
+    width: 100%;
+    border: 0;
+    background: #000;
+}
+
+/* (Decorative SVG overlays in the top-right of content were removed —
+ * the cubist drawing now lives inside the sidebar anyserver panel.) */
+
+/* ── Sidebar plato decoration ───────────────────────────── */
+
+.sidebar .plato {
+    display: block;
+    width: 100%;
+    height: 200px;
+    background-color: var(--amber);
+    -webkit-mask: url("/static/cubist_thin_full.svg") no-repeat center / contain;
+    mask: url("/static/cubist_thin_full.svg") no-repeat center / contain;
+    opacity: .85;
+}
+
+/* ── Filetype icons in the tree ─────────────────────────── */
+
+.tree li[data-ext] > a::before {
+    content: attr(data-ext);
+    display: inline-block;
+    min-width: 1.8em;
+    margin-right: 4px;
+    padding: 0 3px;
+    font-size: 9px;
+    text-align: center;
+    color: #000;
+    background: var(--amber-dim);
+    border-radius: 2px;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    vertical-align: middle;
+}
+.tree li[data-ext="go"]   > a::before { background: #00ADD8; color: #fff; }
+.tree li[data-ext="md"]   > a::before { background: #6c757d; color: #fff; }
+.tree li[data-ext="sh"]   > a::before { background: #4eaa25; color: #fff; }
+.tree li[data-ext="html"] > a::before { background: #e34c26; color: #fff; }
+.tree li[data-ext="css"]  > a::before { background: #2965f1; color: #fff; }
+.tree li[data-ext="json"] > a::before { background: #aaa;    color: #000; }
+.tree li[data-ext="proto"]> a::before { background: var(--amber); color: #000; }
+.tree li[data-ext="svg"]  > a::before { background: #ffb13b; color: #000; }
+.tree li[data-ext="webp"] > a::before { background: #ffb13b; color: #000; }
+.tree li[data-ext="txt"]  > a::before { background: #555; color: #fff; }
+.tree li[data-ext="yml"]  > a::before,
+.tree li[data-ext="yaml"] > a::before { background: #cb171e; color: #fff; }
+
+/* Hide the rotating color dot when a filetype tag is shown — avoids
+ * visual clutter; the tag itself acts as the bullet. */
+.tree li[data-ext] > .dot { display: none; }
+
+/* (Spinner-disk styling moved to base.css so the shared all-footer
+ * works on every page, not just the index app shell.) */
+
 /* ── Responsive ─────────────────────────────────────────── */
+
+@media (max-width: 1100px) {
+    .content { flex-direction: column; }
+}
 
 @media (max-width: 900px) {
     .grid { grid-template-columns: 1fr; grid-auto-rows: min-content; overflow: auto; }
-    .dock { height: 170px; }
     .dock.expanded { height: 88vh; }
 }

@@ -8,31 +8,34 @@ PORT="${1:-8080}"
 TEST_PORT=18090
 
 # --- Kill anything already on our ports ---
+#
+# This script is non-blocking — it leaves the server running in the
+# background and exits as soon as snap + browser-open succeed.  Each
+# re-invocation finds and kills the prior background server here.
 
 echo "=== Pre-run cleanup ==="
+# CRITICAL: filter to LISTEN sockets only.  Without `-sTCP:LISTEN`,
+# `lsof -ti :PORT` also returns *client* processes with an established
+# connection to that port — which means an open browser tab viewing
+# http://localhost:8080 would be killed too.  We only want to kill
+# the prior server process, not the user's browser sessions.
 for p in $PORT $TEST_PORT; do
-    PIDS=$(lsof -ti ":$p" 2>/dev/null || true)
+    PIDS=$(lsof -ti ":$p" -sTCP:LISTEN 2>/dev/null || true)
     if [ -n "$PIDS" ]; then
-        echo "killing processes on port $p: $PIDS"
+        echo "killing listener(s) on port $p: $PIDS"
         echo "$PIDS" | xargs kill -9 2>/dev/null || true
     fi
 done
 sleep 1
 
-# --- Cleanup on exit ---
-
-cleanup() {
-    echo ""
-    echo "=== Cleaning up ==="
-    for p in $PORT $TEST_PORT; do
-        PIDS=$(lsof -ti ":$p" 2>/dev/null || true)
-        if [ -n "$PIDS" ]; then
-            echo "$PIDS" | xargs kill -9 2>/dev/null || true
-        fi
-    done
-    rm -f ./anyserver
+# Only the test port needs trap-cleanup — the main server is meant to
+# persist past script exit and is reclaimed by the next run above.
+# (Again, LISTEN-only filter so we don't murder browser clients.)
+cleanup_test_port() {
+    PIDS=$(lsof -ti ":$TEST_PORT" -sTCP:LISTEN 2>/dev/null || true)
+    [ -n "$PIDS" ] && echo "$PIDS" | xargs kill -9 2>/dev/null || true
 }
-trap cleanup EXIT
+trap cleanup_test_port EXIT
 
 # --- Setup ---
 
@@ -55,9 +58,12 @@ bash build.sh
 # --- Run ---
 
 echo ""
-echo "=== Starting anyserver on http://localhost:${PORT} ==="
-./anyserver -port "$PORT" -name "anyserver" &
+echo "=== Starting anyserver on http://localhost:${PORT} (background) ==="
+# Detach fully so the server survives this script's exit.
+nohup ./anyserver -port "$PORT" -name "anyserver" > /tmp/anyserver.log 2>&1 &
 SERVER_PID=$!
+disown "$SERVER_PID" 2>/dev/null || true
+echo "server PID: $SERVER_PID  (log: /tmp/anyserver.log)"
 
 # Wait for server
 for i in $(seq 1 15); do
@@ -102,6 +108,19 @@ check_status "http://localhost:$PORT/nonexistent" "404" "GET /nonexistent"
 echo ""
 echo "=== All checks passed ==="
 
+# --- Snapshots (chromerpc visual review) ---
+# Captures key pages via headless Chrome so both the user (via open) and
+# the assistant (via the saved PNGs) can review the rendered UI.
+# Skip with SKIP_SNAP=1; suppress the auto-open with NO_OPEN=1.
+
+if [ -z "${SKIP_SNAP:-}" ]; then
+    echo ""
+    echo "=== Snapshots ==="
+    # NO_OPEN=1 so snap.sh writes PNGs without opening an image viewer —
+    # the live URL is opened below instead.
+    NO_OPEN=1 bash snap.sh "$PORT" || echo "  (snap.sh failed; continuing — see output above)"
+fi
+
 # --- Open browser ---
 
 URL="http://localhost:${PORT}"
@@ -115,5 +134,7 @@ else
 fi
 
 echo ""
-echo "Press Ctrl+C to stop the server."
-wait "$SERVER_PID"
+echo "Server is running in background (PID $SERVER_PID) on http://localhost:${PORT}."
+echo "Re-run ./LET_IT_RIP.sh to rebuild & restart.  Or kill it manually:"
+echo "  kill $SERVER_PID"
+echo "  or: lsof -ti :${PORT} | xargs kill -9"

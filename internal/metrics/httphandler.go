@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"sort"
 
+	"github.com/accretional/anyserver/internal/ui"
 	pb "github.com/accretional/anyserver/proto/metrics"
 )
 
@@ -115,21 +116,8 @@ const serverTemplate = `<!DOCTYPE html>
 <title>Server - {{.RepoName}}</title>
 <link rel="stylesheet" href="/static/base.css">
 <link rel="stylesheet" href="/static/docs.css">
-<style>
-html, body { height:100%; }
-body { display:flex; flex-direction:column; }
-.header { flex-shrink:0; }
-.server-body { flex:1; overflow-y:auto; padding-bottom:1rem; }
-.stream-pane { width:100%; height:300px; border:1px solid #d0d8f0; border-radius:4px; background:#1a1a2e; }
-.command-footer { flex-shrink:0; border-top:2px solid #1a1a2e; background:#0d0d1a; }
-.command-footer iframe { width:100%; height:220px; border:none; }
-.site-footer { flex-shrink:0; height:1.5rem; background:#000; color:#888; border-top:1px solid #333; display:flex; align-items:center; justify-content:space-between; padding:0 1rem; font-size:0.7rem; }
-.site-footer a { color:#666; text-decoration:none; margin-left:0.75rem; }
-.site-footer a:hover { color:#aaa; }
-.footer-links { display:flex; gap:0; }
-</style>
 </head>
-<body>
+<body class="page-shell">
 <header class="header">
   <a href="/" class="header-title">{{.RepoName}}</a>
   <nav class="header-nav">
@@ -146,15 +134,15 @@ body { display:flex; flex-direction:column; }
 <div class="server-streams">
   <div class="stream-col">
     <h2>Requests</h2>
-    <iframe src="/wormhole/requests/pane" class="stream-pane"></iframe>
+    <iframe src="/wormhole/requests/pane" class="iframe-pane stream-pane"></iframe>
   </div>
   <div class="stream-col">
     <h2>stdout</h2>
-    <iframe src="/wormhole/stdout/pane" class="stream-pane"></iframe>
+    <iframe src="/wormhole/stdout/pane" class="iframe-pane stream-pane"></iframe>
   </div>
   <div class="stream-col">
     <h2>stderr</h2>
-    <iframe src="/wormhole/stderr/pane" class="stream-pane"></iframe>
+    <iframe src="/wormhole/stderr/pane" class="iframe-pane stream-pane"></iframe>
   </div>
 </div>
 
@@ -215,15 +203,7 @@ body { display:flex; flex-direction:column; }
 <div id="command-footer" class="command-footer" style="display:none;">
   <iframe src="/wormhole/command/pane"></iframe>
 </div>
-<footer class="site-footer">
-  <span>{{.RepoName}}</span>
-  <span class="footer-links">
-    <a href="/docs/">Docs</a>
-    <a href="/api/">API</a>
-    <a href="#">Privacy</a>
-    <a href="#">Terms</a>
-  </span>
-</footer>
+` + ui.Footer + `
 <script>
 window.addEventListener('message', function(e) {
   if (e.data && e.data.type === 'command-pane') {

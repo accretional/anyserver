@@ -249,3 +249,22 @@ h2 {
 @media (max-width: 900px) {
     .server-streams { flex-direction: column; }
 }
+
+/* ── /server page chrome ────────────────────────────────── */
+/* (Pulled out of the Go template's inline <style> so the page
+ * picks up everything from shared CSS.  Colours come from
+ * base.css's amber vars via .iframe-pane.) */
+
+.server-body { flex: 1; overflow-y: auto; padding-bottom: 1rem; }
+.stream-pane { height: 300px; }
+.command-footer {
+    flex-shrink: 0;
+    border-top: 1px solid var(--amber);
+    background: rgba(5,5,5,.94);
+}
+.command-footer iframe {
+    width: 100%;
+    height: 220px;
+    border: none;
+    background: #000;
+}

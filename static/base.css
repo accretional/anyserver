@@ -17,6 +17,28 @@
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
+html {
+    scrollbar-color: var(--amber-dim) black;
+    scrollbar-width: thin;
+}
+::-webkit-scrollbar { width: 8px; height: 8px; background: #000; }
+::-webkit-scrollbar-thumb { background: var(--amber-dim); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--amber); }
+
+/* Any link that opens in a new tab/window gets a small ↗ glyph after
+ * it — pure CSS attribute selector, no JS.  Applies site-wide so any
+ * future <a target="_blank"> link is automatically annotated. */
+a[target="_blank"]::after {
+    content: '↗';
+    display: inline-block;
+    margin-left: 2px;
+    font-size: .85em;
+    color: var(--amber-dim);
+    vertical-align: super;
+    line-height: 1;
+}
+a[target="_blank"]:hover::after { color: var(--amber); }
+
 body {
     font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
     background: #000;
@@ -24,6 +46,31 @@ body {
     line-height: 1.5;
     font-size: 12px;
 }
+
+/* Sticky-footer shell used by docs/api/server/placeholder pages — the
+ * all-footer pins to viewport bottom on short pages and sits at end
+ * of content on long ones.  (The index page uses body.app instead.) */
+body.page-shell {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+body.page-shell > .content { flex: 1; }
+body.page-shell > .all-footer { flex-shrink: 0; }
+
+/* Shared embeddable iframe wrapper.  Any iframe (wormhole stream,
+ * docs iframe, etc.) wearing `.iframe-pane` gets the amber theme
+ * automatically — borders, hover, background.  Width/height are left
+ * to per-use-site classes so the look stays consistent regardless
+ * of size. */
+.iframe-pane {
+    width: 100%;
+    border: 1px solid var(--stroke);
+    border-radius: 3px;
+    background: rgba(0,0,0,.55);
+    transition: border-color .15s;
+}
+.iframe-pane:hover { border-color: var(--amber); }
 
 /* ── Ticker nav ─────────────────────────────────────────── */
 
@@ -133,7 +180,7 @@ body {
 .kv .val { color: #e8e8e8; }
 .kv .val b { color: var(--amber); font-weight: 600; }
 
-/* ── Site footer ────────────────────────────────────────── */
+/* ── Site footer (legacy: docs/api/server pages) ───────── */
 
 .site-footer {
     flex-shrink: 0;
@@ -150,6 +197,227 @@ body {
 }
 .site-footer a { color: var(--muted); text-decoration: none; margin-left: 0.75rem; }
 .site-footer a:hover { color: var(--amber); }
+
+/* ── All-footer: permanent site anchor (index page) ─────
+ *
+ * Structure:
+ *   <footer.all-footer>
+ *     <.footer-content>       — hidden by default; grows up to max(100px,50vh) on :target
+ *     <.footer-base>          — always visible; 2-row grid + optional submenu row
+ *       <.footer-controls>    — left, spans 2 rows (status text)
+ *       <.footer-info>        — top-right (copyright)
+ *       <.footer-menu>        — bottom-right (link grid + ↑ button)
+ *       <.footer-submenu>     — 3rd row, populated for multi-page links
+ *
+ * Activation is pure CSS: :target on a .footer-content child shows
+ * that <p>, and :has() on the ancestor switches the submenu row.
+ */
+
+.all-footer {
+    flex-shrink: 0;
+    background: #000;
+    border-top: 1px solid rgba(245,158,11,.25);
+    display: flex;
+    flex-direction: column;
+    z-index: 60;
+    font-size: 10px;
+    color: var(--muted);
+    position: relative;
+}
+
+.footer-base {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto auto;
+    align-items: center;
+    column-gap: 14px;
+    row-gap: 2px;
+    padding: 4px 10px;
+    min-height: 2rem;
+}
+
+.footer-controls {
+    grid-column: 1;
+    grid-row: 1;
+    display: flex;
+    align-items: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.footer-controls b { color: var(--amber); font-weight: 600; }
+.footer-controls a { color: var(--muted); text-decoration: none; }
+.footer-controls a:hover { color: var(--amber); }
+
+.footer-menu {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    white-space: nowrap;
+}
+.footer-menu-links {
+    display: inline-flex;
+    align-items: center;
+    gap: 14px;
+}
+.footer-menu-links a {
+    color: var(--muted);
+    text-decoration: none;
+    padding: 0 2px;
+    border: 1px solid transparent;
+}
+.footer-menu-links a:hover {
+    color: var(--amber);
+    background: var(--amber-bg);
+}
+
+/* Menu collapse toggle — CSS-only, no JS.
+ *
+ * `#menu-collapse` is a hidden checkbox sibling of `.footer-base`.
+ * The `<label class="menu-toggle">` is positioned BEFORE the link
+ * list (`.footer-menu-links`).  Default state shows `>>` and all
+ * links.  When the checkbox flips checked:
+ *   - the label glyph becomes `<<`
+ *   - `.footer-menu-links` is hidden via sibling combinator
+ *
+ * No JS involved — pure CSS state machine.
+ */
+.menu-collapse-toggle { display: none; }
+
+.menu-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.7rem;
+    height: 1.5rem;
+    padding: 0 4px;
+    color: var(--amber);
+    text-decoration: none;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1;
+    border: 1px solid var(--stroke);
+    border-radius: 3px;
+    background: rgba(0,0,0,.4);
+    cursor: pointer;
+    user-select: none;
+    letter-spacing: -1px;
+}
+.menu-toggle:hover { background: var(--amber-bg); border-color: var(--amber); }
+.menu-toggle::before { content: '>>'; }
+#menu-collapse:checked ~ .footer-base .menu-toggle::before { content: '<<'; }
+#menu-collapse:checked ~ .footer-base .footer-menu-links { display: none; }
+
+/* (The submenu now lives inside .frunk-header — see frunk styles below.) */
+
+/* The frunk — content panel that pops UNDER the footer-base on :target.
+ *
+ * DOM order is <footer-base> then <footer-content>, so when the frunk
+ * is visible it occupies the row BELOW the footer-base (the footer
+ * grows downward, displacing main content upward).  Hidden by default
+ * via display:none; activated when any child <p> matches :target.
+ */
+.footer-content {
+    display: none;
+    background: rgba(0,0,0,.96);
+    border-top: 1px solid var(--stroke);
+    overflow-y: auto;
+    max-height: max(100px, 50vh);
+    position: relative;
+}
+.all-footer:has(.footer-content :target) .footer-content {
+    display: block;
+}
+
+/* Frunk header bar — single row containing:
+ *   - .frunk-submenu (left, flex:1)   — context-sensitive subpage links
+ *   - .frunk-title   (right)          — title for the currently :target'd <p>
+ *   - .footer-close  (far right)      — × close button
+ *
+ * The title is driven by per-id `:has()` rules below, since CSS attr()
+ * can only read attributes from the SAME element. */
+.frunk-header {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 4px 10px 4px 14px;
+    background: rgba(0,0,0,.96);
+    border-bottom: 1px solid var(--stroke);
+}
+.frunk-submenu {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    gap: 14px;
+    overflow: hidden;
+}
+.frunk-submenu > div { display: none; gap: 14px; flex-wrap: wrap; }
+.frunk-submenu > div a { color: var(--amber); text-decoration: none; font-size: 11px; }
+.frunk-submenu > div a:hover { text-decoration: underline; }
+
+.all-footer:has(#api:target) .frunk-submenu > [data-for="api"],
+.all-footer:has(#docs:target) .frunk-submenu > [data-for="docs"],
+.all-footer:has(#accretional:target) .frunk-submenu > [data-for="accretional"] {
+    display: flex;
+}
+
+.frunk-title {
+    color: var(--amber);
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+.all-footer:has(#about:target)       .frunk-title::before { content: 'About anyserver'; }
+.all-footer:has(#privacy:target)     .frunk-title::before { content: 'Privacy Policy'; }
+.all-footer:has(#terms:target)       .frunk-title::before { content: 'Terms and Conditions'; }
+.all-footer:has(#api:target)         .frunk-title::before { content: 'API Reference'; }
+.all-footer:has(#docs:target)        .frunk-title::before { content: 'Documentation'; }
+.all-footer:has(#accretional:target) .frunk-title::before { content: 'Accretional'; }
+
+/* Frunk close — anchor styled as a button, sits to the right of the
+ * title inside .frunk-header. */
+.footer-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.6rem;
+    height: 1.6rem;
+    color: var(--amber);
+    text-decoration: none;
+    font-size: 16px;
+    line-height: 1;
+    font-weight: 600;
+    border: 1px solid var(--stroke);
+    border-radius: 3px;
+    background: rgba(0,0,0,.7);
+}
+.footer-close:hover { background: var(--amber-bg); border-color: var(--amber); color: #f87171; }
+.footer-close::before { content: '\00d7'; }
+
+.footer-content p {
+    display: none;
+    white-space: pre-wrap;
+    color: var(--text);
+    line-height: 1.5;
+    font-size: 11px;
+    padding: 8px 14px;
+}
+.footer-content p:target { display: block; }
+
+/* Spinner — the accretion webp is self-animated, no CSS rotation needed. */
+.spinner-disk {
+    width: 1.9rem;
+    height: 1.9rem;
+    border-radius: 50%;
+    vertical-align: middle;
+    margin-right: 8px;
+}
 
 /* ── README content ─────────────────────────────────────── */
 

@@ -66,8 +66,8 @@ do_build() {
     echo ""
 
     echo "--- Copying static assets ---"
-    ls -l static/*.css
-    cp static/*.css "$EMBED_STATIC/"
+    ls -l static/
+    cp static/* "$EMBED_STATIC/"
     echo ""
 
     echo "--- Copying swagger spec ---"

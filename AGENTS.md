@@ -11,13 +11,16 @@ Before working on this project, run `./setup.sh` to install required tools:
 - `./tools/gen.sh` — regenerate all proto code
 - `./build.sh` — prepare embedded source + build binary
 - `./test.sh` — full validation (vet, test, build, smoke test)
-- `./LET_IT_RIP.sh` — full pipeline: setup + test + build + serve + open browser
+- `./LET_IT_RIP.sh` — full pipeline: setup + test + build + serve + snap + open browser
+- `./snap.sh [port]` — re-snapshot the running server (writes `chrome-testing/snapshots/*.png`, opens index)
 
 All validation goes through these scripts. Never run go test/build ad-hoc as final validation.
 
 **CRITICAL: ALWAYS run `./LET_IT_RIP.sh` before EVERY `git commit` and `git push`.** No exceptions.
 
-**Scripts must be idempotent.** They kill old servers on their ports, clean up on exit, and work when re-run. Never fix port conflicts or stale processes with one-off commands — update the script to handle it and rerun.
+**LET_IT_RIP.sh is non-blocking.** It detaches the server with `nohup` and exits as soon as snap + browser-open succeed. Re-invoking it kills the prior server on the port (in the pre-run cleanup block) and rebuilds fresh. Do NOT pipe its output through `tail`/`grep` waiting for an "ended" marker, and do NOT poll for steady-state — by the time the script returns, the server is already up on `:8080` and the new snapshots are in `chrome-testing/snapshots/`.
+
+**Scripts must be idempotent.** They kill old servers on their ports and work when re-run. Never fix port conflicts or stale processes with one-off commands — update the script to handle it and rerun.
 
 ## Build-time tools
 
