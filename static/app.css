@@ -33,7 +33,19 @@ body.app {
 }
 .sidebar .panel { border: none; border-bottom: 1px solid var(--stroke); background: transparent; flex-shrink: 0; }
 .sidebar .panel.tree-panel { border-bottom: none; flex: 1; min-height: 0; display: flex; flex-direction: column; }
-.sidebar .panel.search-panel { flex-shrink: 0; border-top: 1px solid var(--stroke); border-bottom: none; }
+.sidebar .panel.search-panel { flex-shrink: 0; border-top: 1px solid var(--stroke); border-bottom: none; padding: 0; }
+/* Sidebar nav (Documentation / API / Server Info) — was inline-styled. */
+.sidebar-nav {
+    padding: 6px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: 11px;
+}
+.sidebar-nav-row { display: flex; gap: 14px; justify-content: center; }
+.sidebar-nav-center { text-align: center; }
+.sidebar-nav a { color: var(--amber); text-decoration: none; }
+.sidebar-nav a:hover { text-decoration: underline; }
 .sidebar .search {
     width: 100%;
     background: #000;
@@ -170,21 +182,33 @@ body.app {
 .shotlist .chk { color: var(--amber); }
 
 .bar { height: 4px; background: rgba(245,158,11,.18); border: 1px solid rgba(245,158,11,.3); position: relative; overflow: hidden; }
-.bar > i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--amber); width: 0; }
+/* Bars inside the deliv (Server&Application) widget sit tightly
+ * against the row above — was margin:-2px 0 4px inline. */
+.deliv > .bar { margin: -2px 0 4px; }
+/* The fill width is the only thing the call site needs to set,
+ * via the `--w` custom property. */
+.bar > i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--amber); width: var(--w, 0%); }
+
+/* Compact key-value list body (Service panel) — was inline-styled. */
+.panel-body.kv-list {
+    padding: 5px 6px;
+    gap: 2px;
+    overflow-y: auto;
+}
 
 /* ── Multi-panel main content ───────────────────────────── */
 
 .content { flex-direction: row; padding: 8px; gap: 8px; position: relative; }
 .content > .panel { flex: 1 1 0; min-width: 0; }
-.content > .panel iframe {
+/* Any iframe directly inside a panel fills it with a black background
+ * and no border — was inline-styled per call site. */
+.panel > iframe {
     flex: 1 1 auto;
     width: 100%;
     border: 0;
     background: #000;
 }
 
-/* (Decorative SVG overlays in the top-right of content were removed —
- * the cubist drawing now lives inside the sidebar anyserver panel.) */
 
 /* ── Sidebar plato decoration ───────────────────────────── */
 
@@ -232,8 +256,6 @@ body.app {
  * visual clutter; the tag itself acts as the bullet. */
 .tree li[data-ext] > .dot { display: none; }
 
-/* (Spinner-disk styling moved to base.css so the shared all-footer
- * works on every page, not just the index app shell.) */
 
 /* ── Responsive ─────────────────────────────────────────── */
 

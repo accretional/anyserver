@@ -3,24 +3,6 @@
  * Requires base.css to be loaded first.
  */
 
-/* ── Legacy header ──────────────────────────────────────── */
-
-.header {
-    height: 24px;
-    background: #000;
-    color: var(--text);
-    padding: 0 8px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    border-bottom: 1px solid var(--amber);
-    font-size: 11px;
-}
-.header-title { color: var(--amber); text-decoration: none; font-weight: 700; }
-.header-nav { display: flex; gap: 1rem; }
-.header-nav a { color: var(--muted); text-decoration: none; font-size: 11px; }
-.header-nav a:hover { color: var(--amber); }
-
 /* ── Content container ──────────────────────────────────── */
 
 .content {
@@ -213,38 +195,9 @@ h2 {
 
 /* ── Wormhole / Streaming ───────────────────────────────── */
 
-.wormhole-tail pre {
-    background: #000;
-    color: #e0e0e0;
-    padding: 1rem;
-    overflow-x: auto;
-    font-size: 11px;
-    line-height: 1.4;
-    max-height: 300px;
-    overflow-y: auto;
-}
-
 .server-streams { display: flex; gap: 1rem; margin-bottom: 1.5rem; }
 .stream-col { flex: 1; min-width: 0; }
 .stream-col h2 { font-size: 12px; margin-bottom: 0.5rem; padding-bottom: 0.25rem; border-bottom: 1px solid var(--stroke); }
-
-.stream-frame {
-    width: 100%;
-    height: 300px;
-    border: 1px solid var(--stroke);
-    background: #000;
-    overflow-y: auto;
-}
-
-.stream-frame pre {
-    margin: 0;
-    padding: 0.75rem;
-    color: #e0e0e0;
-    font-size: 11px;
-    line-height: 1.4;
-    white-space: pre-wrap;
-    word-break: break-all;
-}
 
 @media (max-width: 900px) {
     .server-streams { flex-direction: column; }
@@ -258,10 +211,12 @@ h2 {
 .server-body { flex: 1; overflow-y: auto; padding-bottom: 1rem; }
 .stream-pane { height: 300px; }
 .command-footer {
+    display: none;
     flex-shrink: 0;
     border-top: 1px solid var(--amber);
     background: rgba(5,5,5,.94);
 }
+.command-footer.visible { display: block; }
 .command-footer iframe {
     width: 100%;
     height: 220px;

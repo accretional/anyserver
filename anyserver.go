@@ -309,15 +309,6 @@ func renderDocsPage(repoName string, content template.HTML) []byte {
 	return []byte(buf.String())
 }
 
-const navHTML = `<div class="ticker">
-  <span><b>{{.RepoName}}</b></span><span class="dot">·</span>
-  <span><a href="/">Home</a></span><span class="dot">·</span>
-  <span><a href="/source/">Source</a></span><span class="dot">·</span>
-  <span><a href="/docs/">Docs</a></span><span class="dot">·</span>
-  <span><a href="/api/">API</a></span><span class="dot">·</span>
-  <span><a href="/server/">Server</a></span>
-</div>`
-
 const indexTemplate = `<!DOCTYPE html>
 <html lang="en"><head>
 <meta charset="UTF-8">
@@ -329,13 +320,13 @@ const indexTemplate = `<!DOCTYPE html>
 <div class="main-area">
   <aside class="sidebar">
     <div class="panel">
-      <div class="panel-head"><a href="/" style="color:var(--amber);text-decoration:none">{{.RepoName}}</a></div>
-      <div style="padding:6px 8px;display:flex;flex-direction:column;gap:2px;font-size:11px">
-        <div style="display:flex;gap:14px;justify-content:center">
-          <a href="/docs/" style="color:var(--amber);text-decoration:none">Documentation</a>
-          <a href="/api/" style="color:var(--amber);text-decoration:none">API Reference</a>
+      <div class="panel-head"><a href="/">{{.RepoName}}</a></div>
+      <div class="sidebar-nav">
+        <div class="sidebar-nav-row">
+          <a href="/docs/">Documentation</a>
+          <a href="/api/">API Reference</a>
         </div>
-        <div style="text-align:center"><a href="/server/" style="color:var(--amber);text-decoration:none">Server Info</a></div>
+        <div class="sidebar-nav-center"><a href="/server/">Server Info</a></div>
       </div>
       <div class="plato" role="img" aria-label="cubist"></div>
     </div>
@@ -343,24 +334,24 @@ const indexTemplate = `<!DOCTYPE html>
       <div class="panel-head">Filesystem</div>
       <ul class="tree" id="tree"></ul>
     </div>
-    <div class="panel search-panel" style="padding:0">
+    <div class="panel search-panel">
       <input class="search" id="q" placeholder="search code...">
     </div>
   </aside>
   <div class="content" id="mainContent">
     <div class="panel" id="worldlyPanel">
-      <div class="panel-head" style="display:flex;gap:12px;align-items:baseline">
+      <div class="panel-head">
         <span class="file-name">Worldly</span>
-        <span style="color:var(--muted);font-weight:400;text-transform:none;letter-spacing:normal">https://worldlycre.com</span>
+        <span class="file-info">https://worldlycre.com</span>
       </div>
-      <iframe src="https://worldlycre.com" title="Worldly CRE" loading="lazy" style="flex:1;width:100%;border:0;background:#000"></iframe>
+      <iframe src="https://worldlycre.com" title="Worldly CRE" loading="lazy"></iframe>
     </div>
     <div class="panel" id="docsPanel">
-      <div class="panel-head" style="display:flex;gap:12px;align-items:baseline">
+      <div class="panel-head">
         <span class="file-name">Documentation</span>
-        <span style="color:var(--muted);font-weight:400;text-transform:none;letter-spacing:normal">/docs/</span>
+        <span class="file-info">/docs/</span>
       </div>
-      <iframe src="/docs/" title="Documentation" loading="lazy" style="flex:1;width:100%;border:0;background:#000"></iframe>
+      <iframe src="/docs/" title="Documentation" loading="lazy"></iframe>
     </div>
     <div class="panel file-panel" id="filePanel">
       <div class="file-head"><span class="file-name" id="fileName">README.md</span><span class="file-info" id="fileInfo"></span></div>
@@ -440,7 +431,7 @@ const indexTemplate = `<!DOCTYPE html>
         <div class="panel-body">
           <div class="deliv">
             <div class="drow"><div class="dname">Server Setup</div><div class="dval"><b>84%</b></div></div>
-            <div class="bar" style="margin:-2px 0 4px"><i style="width:84%"></i></div>
+            <div class="bar"><i style="--w:84%"></i></div>
             <div class="drow"><div class="dname">Network</div><div class="dval">accretional_henosis</div></div>
             <div class="drow"><div class="dname">SSL Certs</div><div class="dval"><b>valid</b></div></div>
             <div class="drow"><div class="dname">Session</div><div class="dval" id="inf-sess">awaiting auth</div></div>
@@ -457,7 +448,7 @@ const indexTemplate = `<!DOCTYPE html>
 
       <div class="panel" id="pInfo">
         <div class="panel-header"><span>Service</span><span class="ico" onclick="this.closest('.panel').classList.toggle('collapsed')">±</span></div>
-        <div class="panel-body" style="padding:5px 6px;gap:2px;overflow-y:auto">
+        <div class="panel-body kv-list">
           <div class="kv"><span class="name">Host</span> <span class="val" id="inf-host">—</span></div>
           <div class="kv"><span class="name">OS</span> <span class="val" id="inf-os">—</span></div>
           <div class="kv"><span class="name">Go</span> <span class="val" id="inf-go">—</span></div>
@@ -605,7 +596,7 @@ function loadFile(path,name){
     body.appendChild(pre);
   }).catch(function(){
     infoEl.textContent='error';
-    body.innerHTML='<div style="padding:1rem;color:#d73a49">Could not load '+escapeHtml(path)+'</div>';
+    body.innerHTML='<div class="file-error">Could not load '+escapeHtml(path)+'</div>';
   });
 }
 function escapeHtml(s){
@@ -669,7 +660,7 @@ const placeholderTemplate = `<!DOCTYPE html>
 <link rel="stylesheet" href="/static/docs.css">
 </head>
 <body class="page-shell">
-` + navHTML + `
+` + ui.Nav + `
 <main class="content">
   <section class="index-section">
     <h2>{{.Section}}</h2>
@@ -690,7 +681,7 @@ const docsPageTemplate = `<!DOCTYPE html>
 <link rel="stylesheet" href="/static/docs.css">
 </head>
 <body class="page-shell">
-` + navHTML + `
+` + ui.Nav + `
 <main class="content">
 {{.Content}}
 </main>
@@ -708,7 +699,7 @@ const apiPageTemplate = `<!DOCTYPE html>
 <link rel="stylesheet" href="/static/docs.css">
 </head>
 <body class="page-shell">
-` + navHTML + `
+` + ui.Nav + `
 <main class="content">
 {{.Content}}
 </main>

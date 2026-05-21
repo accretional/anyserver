@@ -118,16 +118,7 @@ const serverTemplate = `<!DOCTYPE html>
 <link rel="stylesheet" href="/static/docs.css">
 </head>
 <body class="page-shell">
-<header class="header">
-  <a href="/" class="header-title">{{.RepoName}}</a>
-  <nav class="header-nav">
-    <a href="/source/">Source</a>
-    <a href="/docs/">Docs</a>
-    <a href="/api/">API</a>
-    <a href="/server/">Server</a>
-  </nav>
-</header>
-
+` + ui.Nav + `
 <div class="server-body">
 <main class="content">
 
@@ -200,14 +191,14 @@ const serverTemplate = `<!DOCTYPE html>
 </main>
 </div>
 
-<div id="command-footer" class="command-footer" style="display:none;">
+<div id="command-footer" class="command-footer">
   <iframe src="/wormhole/command/pane"></iframe>
 </div>
 ` + ui.Footer + `
 <script>
 window.addEventListener('message', function(e) {
   if (e.data && e.data.type === 'command-pane') {
-    document.getElementById('command-footer').style.display = e.data.visible ? '' : 'none';
+    document.getElementById('command-footer').classList.toggle('visible', e.data.visible);
   }
 });
 </script>
