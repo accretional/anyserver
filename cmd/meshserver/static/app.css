@@ -1,0 +1,283 @@
+/* app.css — root page layout
+ *
+ * Requires base.css to be loaded first.
+ */
+
+/* ── Root page body overrides ───────────────────────────── */
+
+html, body.app { height: 100%; }
+body.app {
+    line-height: 1.35;
+    font-size: 11px;
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+/* ── Layout ─────────────────────────────────────────────── */
+
+.main-area { flex: 1; display: flex; overflow: hidden; position: relative; z-index: 1; }
+
+/* ── Sidebar ────────────────────────────────────────────── */
+
+.sidebar {
+    width: 240px;
+    flex-shrink: 0;
+    background: rgba(5,5,5,.9);
+    border-right: 1px solid var(--stroke);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+.sidebar .panel { border: none; border-bottom: 1px solid var(--stroke); background: transparent; flex-shrink: 0; }
+.sidebar .panel.tree-panel { border-bottom: none; flex: 1; min-height: 0; }
+.sidebar .panel.search-panel { flex-shrink: 0; border-top: 1px solid var(--stroke); border-bottom: none; padding: 0; }
+/* Sidebar nav (Documentation / API / Server Info) — was inline-styled. */
+.sidebar-nav {
+    padding: 6px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: 11px;
+}
+.sidebar-nav-row { display: flex; gap: 14px; justify-content: center; }
+.sidebar-nav-center { text-align: center; }
+.sidebar-nav a { color: var(--amber); text-decoration: none; }
+.sidebar-nav a:hover { text-decoration: underline; }
+.sidebar .search {
+    width: 100%;
+    background: #000;
+    color: var(--text);
+    border: none;
+    padding: 6px 8px;
+    font-family: inherit;
+    font-size: 11px;
+    outline: none;
+}
+.sidebar .search::placeholder { color: var(--muted); }
+
+/* ── Filesystem tree ────────────────────────────────────── */
+
+.tree { list-style: none; padding: 4px 8px; font-size: 11px; line-height: 1.6; }
+.tree li { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; padding: 0 2px; }
+.tree li:hover { background: rgba(245,158,11,.08); }
+.tree li .sz { color: var(--muted); margin-left: 4px; font-size: 10px; }
+.tree li .cnt { color: var(--muted); margin-left: 4px; font-size: 10px; }
+.tree li a { color: var(--text); text-decoration: none; }
+.tree li a:hover { color: var(--amber); }
+.tree li.dir > a { color: var(--amber); }
+.tree .dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 4px; vertical-align: middle; }
+.dot.amber { background: #f59e0b; }
+.dot.olive { background: #84cc16; }
+.dot.bronze { background: #d97706; }
+.dot.terra { background: #92400e; }
+.tree .sub { list-style: none; padding-left: 12px; overflow: hidden; display: none; }
+.tree li.open > .sub { display: block; }
+
+/* ── Content area ───────────────────────────────────────── */
+
+.content { flex: 1; display: flex; flex-direction: column; overflow: hidden; padding: 8px; gap: 8px; }
+
+/* ── README padding inside file-panel ───────────────────── */
+
+.file-panel .readme-content { font-size: 12px; line-height: 1.6; }
+.file-panel .readme-content h1,
+.file-panel .readme-content h2,
+.file-panel .readme-content h3 { color: var(--amber); margin-top: 1.25rem; margin-bottom: 0.4rem; }
+.file-panel .readme-content pre { background: rgba(245,158,11,0.05); border: 1px solid var(--stroke); padding: 0.75rem; overflow-x: auto; font-size: 11px; }
+.file-panel .readme-content code { font-family: inherit; font-size: 0.95em; }
+.file-panel .readme-content a { color: var(--amber); }
+.file-panel .readme-content p { margin-bottom: 0.6rem; }
+.file-panel .readme-content ul,
+.file-panel .readme-content ol { margin-left: 1.25rem; margin-bottom: 0.6rem; }
+
+/* ── Dock (bottom console) ──────────────────────────────── */
+/*
+ * Pure-CSS collapse via checkbox-trick.  The hidden `#dock-collapse`
+ * checkbox is the first child of `.dock`; the `<label class="dock-toggle">`
+ * sits next to it as the visible nub.  Default unchecked = expanded.
+ *
+ *   #dock-collapse:checked ~ .dock-inner { display: none }
+ *
+ * `:has()` lets the `.dock` itself shrink to 0 height in the same state.
+ */
+.dock {
+    position: relative;
+    height: 320px;
+    background: rgba(5,5,5,.94);
+    border-top: 1px solid var(--amber);
+    box-shadow: 0 -8px 30px rgba(0,0,0,.8);
+    transition: height .28s ease;
+    z-index: 50;
+    flex-shrink: 0;
+    overflow: visible;
+}
+.dock:has(#dock-collapse:checked) { height: 0; }
+
+.dock-collapse-toggle { display: none; }
+
+.dock-toggle {
+    position: absolute;
+    top: -1.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 28px;
+    height: 1.5rem;
+    background: #000;
+    border: 1px solid var(--amber);
+    border-bottom: none;
+    border-radius: 12px 12px 0 0;
+    color: var(--amber);
+    font-size: 11px;
+    line-height: 1.5rem;
+    text-align: center;
+    cursor: pointer;
+    letter-spacing: .05em;
+    z-index: 51;
+    user-select: none;
+}
+.dock-toggle::before { content: '▼'; }
+#dock-collapse:checked ~ .dock-toggle::before { content: '▲'; }
+.dock-toggle:hover { background: var(--amber-bg); }
+
+.dock-inner { height: 100%; padding: 8px; overflow: hidden; }
+#dock-collapse:checked ~ .dock-inner { display: none; }
+
+.grid {
+    display: grid;
+    grid-template-columns: 1fr 210px 220px 260px;
+    grid-template-rows: 1fr;     /* clamp panels to dock height; overflow scrolls inside */
+    gap: 8px;
+    height: 100%;
+    min-height: 0;
+}
+.grid > .panel { min-height: 0; }
+
+/* ── Console panel ──────────────────────────────────────── */
+/*
+ * The console is just a .panel with the .console-panel modifier.
+ * Its tab strip (COMMAND / REQUESTS / STDOUT / STDERR) and the
+ * token + connect auth controls live inside the standard
+ * .panel-interface slot of the unified .panel-header.
+ *
+ * .console-panel keeps its own width override (it takes the 1fr
+ * column of the dock grid — the other panels are fixed widths).
+ */
+.console-panel .panel-interface { gap: 0; }
+.console-panel .console-auth { margin-left: auto; display: flex; align-items: center; gap: 6px; padding-right: 4px; }
+.console-panel .console-auth input { background: #000; color: var(--text); border: 1px solid var(--stroke); padding: 2px 6px; font-family: inherit; font-size: 10px; width: 10rem; border-radius: 2px; }
+.console-panel .console-auth button { background: rgba(245,158,11,.15); color: var(--amber); border: 1px solid var(--stroke); padding: 2px 8px; border-radius: 2px; cursor: pointer; font-family: inherit; font-size: 10px; }
+.console-panel .console-auth button:hover { background: rgba(245,158,11,.25); }
+.console-panel .console-auth span { font-size: 10px; color: var(--muted); }
+
+/* ── Dock panel widgets ─────────────────────────────────── */
+
+.cam { display: grid; grid-template-columns: 1fr auto; gap: 6px; align-items: center; padding: 2px 0; border-bottom: 1px dotted rgba(245,158,11,.14); }
+.cam:last-child { border-bottom: none; }
+.cam .name { color: #e8e8e8; }
+.cam .meta { color: var(--muted); }
+.cam .meta b { color: var(--amber); font-weight: 600; }
+
+.info-split { display: flex; flex-direction: column; gap: 0; height: 100%; overflow-y: auto; }
+.info-split .subhead { padding: 4px 6px 2px; margin: 0; }
+
+.deliv { display: flex; flex-direction: column; gap: 4px; }
+.drow { display: grid; grid-template-columns: 1fr auto; gap: 6px; align-items: center; padding: 2px 0; border-bottom: 1px dotted rgba(245,158,11,.12); }
+.drow:last-child { border-bottom: none; }
+.dname { color: #e2e2e2; }
+.dval { color: var(--muted); text-align: right; }
+.dval b { color: var(--amber); }
+
+.extra { margin-top: 4px; padding-top: 4px; border-top: 1px solid rgba(245,158,11,.18); display: flex; flex-direction: column; gap: 4px; opacity: .98; }
+.subhead { color: var(--amber); text-transform: uppercase; letter-spacing: .06em; font-size: 10px; opacity: .9; }
+.chat { display: flex; flex-direction: column; gap: 3px; max-height: 78px; overflow: auto; padding-right: 2px; }
+.msg { border-left: 2px solid rgba(245,158,11,.35); padding-left: 4px; }
+.msg .who { color: var(--amber); }
+.msg .time { color: var(--muted); margin-left: 4px; }
+.spark { width: 48px; height: 14px; opacity: .9; flex-shrink: 0; }
+
+.shotlist { display: grid; grid-template-columns: 1fr auto; row-gap: 2px; column-gap: 6px; }
+.shotlist .chk { color: var(--amber); }
+
+.bar { height: 4px; background: rgba(245,158,11,.18); border: 1px solid rgba(245,158,11,.3); position: relative; overflow: hidden; }
+/* Bars inside the deliv (Server&Application) widget sit tightly
+ * against the row above — was margin:-2px 0 4px inline. */
+.deliv > .bar { margin: -2px 0 4px; }
+/* The fill width is the only thing the call site needs to set,
+ * via the `--w` custom property. */
+.bar > i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--amber); width: var(--w, 0%); }
+
+/* Compact key-value list body (Service panel) — was inline-styled. */
+.panel-body.kv-list {
+    padding: 5px 6px;
+    gap: 2px;
+    overflow-y: auto;
+}
+
+/* ── Multi-panel main content ───────────────────────────── */
+
+.content { flex-direction: row; padding: 8px; gap: 8px; position: relative; }
+.content > .panel { flex: 1 1 0; min-width: 0; }
+/* (Iframe-in-panel sizing is handled by .panel-body.iframe-body in
+ * base.css — one rule applies to every panel that holds an iframe.) */
+
+
+/* ── Sidebar plato decoration ───────────────────────────── */
+
+.sidebar .plato {
+    display: block;
+    width: 100%;
+    height: 200px;
+    background-color: var(--amber);
+    -webkit-mask: url("/static/cubist_thin_full.svg") no-repeat center / contain;
+    mask: url("/static/cubist_thin_full.svg") no-repeat center / contain;
+    opacity: .85;
+}
+
+/* ── Filetype icons in the tree ─────────────────────────── */
+
+.tree li[data-ext] > a::before {
+    content: attr(data-ext);
+    display: inline-block;
+    min-width: 1.8em;
+    margin-right: 4px;
+    padding: 0 3px;
+    font-size: 9px;
+    text-align: center;
+    color: #000;
+    background: var(--amber-dim);
+    border-radius: 2px;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    vertical-align: middle;
+}
+.tree li[data-ext="go"]   > a::before { background: #00ADD8; color: #fff; }
+.tree li[data-ext="md"]   > a::before { background: #6c757d; color: #fff; }
+.tree li[data-ext="sh"]   > a::before { background: #4eaa25; color: #fff; }
+.tree li[data-ext="html"] > a::before { background: #e34c26; color: #fff; }
+.tree li[data-ext="css"]  > a::before { background: #2965f1; color: #fff; }
+.tree li[data-ext="json"] > a::before { background: #aaa;    color: #000; }
+.tree li[data-ext="proto"]> a::before { background: var(--amber); color: #000; }
+.tree li[data-ext="svg"]  > a::before { background: #ffb13b; color: #000; }
+.tree li[data-ext="webp"] > a::before { background: #ffb13b; color: #000; }
+.tree li[data-ext="txt"]  > a::before { background: #555; color: #fff; }
+.tree li[data-ext="yml"]  > a::before,
+.tree li[data-ext="yaml"] > a::before { background: #cb171e; color: #fff; }
+
+/* Hide the rotating color dot when a filetype tag is shown — avoids
+ * visual clutter; the tag itself acts as the bullet. */
+.tree li[data-ext] > .dot { display: none; }
+
+
+/* ── Responsive ─────────────────────────────────────────── */
+
+@media (max-width: 1100px) {
+    .content { flex-direction: column; }
+}
+
+@media (max-width: 900px) {
+    .grid { grid-template-columns: 1fr; grid-auto-rows: min-content; overflow: auto; }
+    .dock { height: 88vh; }
+}
