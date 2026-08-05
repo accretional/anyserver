@@ -6,6 +6,8 @@ cd "$SCRIPT_DIR"
 
 PORT="${1:-8080}"
 TEST_PORT=18090
+SERVER_LOG="/tmp/anyserver.log"
+SERVER_LABEL="com.accretional.anyserver.local.${PORT}"
 
 # --- Kill anything already on our ports ---
 #
@@ -14,6 +16,12 @@ TEST_PORT=18090
 # re-invocation finds and kills the prior background server here.
 
 echo "=== Pre-run cleanup ==="
+# A launchctl-managed server survives the shell that started it. Remove
+# the prior job before checking ports so launchd cannot restart it while
+# this run rebuilds the binary.
+if [ "$(uname -s)" = "Darwin" ] && command -v launchctl &>/dev/null; then
+    launchctl remove "$SERVER_LABEL" 2>/dev/null || true
+fi
 # CRITICAL: filter to LISTEN sockets only.  Without `-sTCP:LISTEN`,
 # `lsof -ti :PORT` also returns *client* processes with an established
 # connection to that port — which means an open browser tab viewing
@@ -59,11 +67,19 @@ bash build.sh
 
 echo ""
 echo "=== Starting anyserver on http://localhost:${PORT} (background) ==="
-# Detach fully so the server survives this script's exit.
-nohup ./anyserver -port "$PORT" -name "anyserver" > /tmp/anyserver.log 2>&1 &
-SERVER_PID=$!
-disown "$SERVER_PID" 2>/dev/null || true
-echo "server PID: $SERVER_PID  (log: /tmp/anyserver.log)"
+# On macOS, launchctl owns the nohup process so it survives non-interactive
+# shells as well as normal terminals. Other platforms use nohup directly.
+if [ "$(uname -s)" = "Darwin" ] && command -v launchctl &>/dev/null; then
+    launchctl submit -l "$SERVER_LABEL" -o "$SERVER_LOG" -e "$SERVER_LOG" -- \
+        /usr/bin/nohup "$SCRIPT_DIR/anyserver" -port "$PORT" -name "anyserver"
+    SERVER_MODE="launchctl job $SERVER_LABEL"
+else
+    nohup ./anyserver -port "$PORT" -name "anyserver" > "$SERVER_LOG" 2>&1 </dev/null &
+    SERVER_PID=$!
+    disown "$SERVER_PID" 2>/dev/null || true
+    SERVER_MODE="background process $SERVER_PID"
+fi
+echo "server: $SERVER_MODE  (log: $SERVER_LOG)"
 
 # Wait for server
 for i in $(seq 1 15); do
@@ -111,19 +127,22 @@ echo "=== All checks passed ==="
 # --- Snapshots (chromerpc visual review) ---
 # Captures key pages via headless Chrome so both the user (via open) and
 # the assistant (via the saved PNGs) can review the rendered UI.
-# Skip with SKIP_SNAP=1; suppress the auto-open with NO_OPEN=1.
+# Skip with SKIP_SNAP=1. Snapshot failure aborts the pipeline before the
+# browser-open stage, so the UI is opened only after automation passes.
 
 if [ -z "${SKIP_SNAP:-}" ]; then
     echo ""
     echo "=== Snapshots ==="
-    # NO_OPEN=1 so snap.sh writes PNGs without opening an image viewer —
-    # the live URL is opened below instead.
-    NO_OPEN=1 bash snap.sh "$PORT" || echo "  (snap.sh failed; continuing — see output above)"
+    # NO_OPEN=1 prevents the snapshot viewer from opening separately;
+    # the live UI is opened exactly once after this command succeeds.
+    NO_OPEN=1 bash snap.sh "$PORT"
 fi
 
-# --- Open browser ---
+# --- Open browser only after all automation has passed ---
 
 URL="http://localhost:${PORT}"
+echo ""
+echo "=== Automation passed ==="
 echo "Opening $URL in browser..."
 if command -v open &>/dev/null; then
     open "$URL"
@@ -134,7 +153,10 @@ else
 fi
 
 echo ""
-echo "Server is running in background (PID $SERVER_PID) on http://localhost:${PORT}."
-echo "Re-run ./LET_IT_RIP.sh to rebuild & restart.  Or kill it manually:"
-echo "  kill $SERVER_PID"
-echo "  or: lsof -ti :${PORT} | xargs kill -9"
+echo "Server is running as $SERVER_MODE on http://localhost:${PORT}."
+echo "Re-run ./LET_IT_RIP.sh to rebuild & restart."
+if [ "$(uname -s)" = "Darwin" ] && command -v launchctl &>/dev/null; then
+    echo "Stop it with: launchctl remove $SERVER_LABEL"
+else
+    echo "Stop it with: kill $SERVER_PID"
+fi

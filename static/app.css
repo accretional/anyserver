@@ -73,7 +73,12 @@ body.app {
 .dot.olive { background: #84cc16; }
 .dot.bronze { background: #d97706; }
 .dot.terra { background: #92400e; }
-.tree .sub { list-style: none; padding-left: 12px; overflow: hidden; display: none; }
+.tree .sub {
+    list-style: none;
+    overflow: hidden;
+    display: none;
+    padding-left: 1em;
+}
 .tree li.open > .sub { display: block; }
 
 /* ── Content area ───────────────────────────────────────── */
@@ -241,17 +246,12 @@ body.app {
 .tree li[data-ext] > a::before {
     content: attr(data-ext);
     display: inline-block;
-    min-width: 1.8em;
-    margin-right: 4px;
-    padding: 0 3px;
+    margin-right: 1em;
     font-size: 9px;
-    text-align: center;
-    color: #000;
+    color: rgb(0, 0, 0);
     background: var(--amber-dim);
     border-radius: 2px;
     text-transform: uppercase;
-    letter-spacing: .04em;
-    vertical-align: middle;
 }
 .tree li[data-ext="go"]   > a::before { background: #00ADD8; color: #fff; }
 .tree li[data-ext="md"]   > a::before { background: #6c757d; color: #fff; }

@@ -292,11 +292,9 @@ details.panel > .panel-body { flex: 1 1 0; min-height: 0; height: 100%; }
  * Structure:
  *   <footer.all-footer>
  *     <.footer-content>       — hidden by default; grows up to max(100px,50vh) on :target
- *     <.footer-base>          — always visible; 2-row grid + optional submenu row
- *       <.footer-controls>    — left, spans 2 rows (status text)
- *       <.footer-info>        — top-right (copyright)
- *       <.footer-menu>        — bottom-right (link grid + ↑ button)
- *       <.footer-submenu>     — 3rd row, populated for multi-page links
+ *     <.footer-base>          — always visible; controls + collapsible menu
+ *       <.footer-controls>    — left-side copyright and spinner
+ *       <.footer-menu>        — right-side links and collapse toggle
  *
  * Activation is pure CSS: :target on a .footer-content child shows
  * that <p>, and :has() on the ancestor switches the submenu row.
@@ -366,11 +364,8 @@ details.panel > .panel-body { flex: 1 1 0; min-height: 0; height: 100%; }
 /* Menu collapse toggle — CSS-only, no JS.
  *
  * `#menu-collapse` is a hidden checkbox sibling of `.footer-base`.
- * The `<label class="menu-toggle">` is positioned BEFORE the link
- * list (`.footer-menu-links`).  Default state shows `>>` and all
- * links.  When the checkbox flips checked:
- *   - the label glyph becomes `<<`
- *   - `.footer-menu-links` is hidden via sibling combinator
+ * The `<label class="menu-toggle">` is positioned before the link
+ * list. Checking it hides the links and reverses the toggle glyph.
  *
  * No JS involved — pure CSS state machine.
  */
@@ -574,17 +569,23 @@ details.panel > .panel-body { flex: 1 1 0; min-height: 0; height: 100%; }
 }
 .file-panel .line {
     display: flex;
-    padding: 0 1rem 0 0;
     min-height: 1.5em;
+    white-space: pre;
+    word-break: normal;
+}
+.file-panel:has(#fileWrapToggle:checked) .line {
     white-space: pre-wrap;
+}
+.file-panel:has(#fileWordBreakToggle:checked) .line {
     word-break: break-all;
 }
 .file-panel .line::before {
     content: counter(line-number);
     counter-increment: line-number;
     flex-shrink: 0;
-    min-width: 3.5em;
-    padding-right: 1em;
+    min-width: 2em;
+    padding-left: 0.25em;
+    padding-right: 0.25em;
     text-align: right;
     color: rgba(245,158,11,.35);
     user-select: none;
@@ -592,5 +593,32 @@ details.panel > .panel-body { flex: 1 1 0; min-height: 0; height: 100%; }
 }
 .file-panel .line:hover {
     background: rgba(245,158,11,.06);
+}
+.file-view-options {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.file-view-toggle {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    padding: 1px 5px;
+    border: 1px solid var(--stroke);
+    border-radius: 2px;
+    color: var(--muted);
+    background: rgba(0,0,0,.4);
+    cursor: pointer;
+    user-select: none;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+}
+.file-view-toggle:hover { border-color: var(--amber); color: var(--amber); }
+.file-view-toggle:has(input:checked) { color: var(--amber); background: var(--amber-bg); }
+.file-view-toggle:has(input:focus-visible) { outline: 1px solid var(--amber); outline-offset: 1px; }
+.file-view-toggle input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
 }
 .file-error { padding: 1rem; color: #f87171; }

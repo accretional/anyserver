@@ -368,7 +368,18 @@ const indexTemplate = `<!DOCTYPE html>
     <details class="panel file-panel" id="filePanel" open>
       <summary class="panel-header">
         <span class="panel-name" id="fileName">README.md</span>
-        <span class="panel-interface" id="fileInfo"></span>
+        <span class="panel-interface" id="fileInfo">
+          <span class="file-view-options" id="fileViewOptions" aria-label="File text display options">
+            <label class="file-view-toggle">
+              <input type="checkbox" id="fileWrapToggle" checked>
+              <span>Wrap</span>
+            </label>
+            <label class="file-view-toggle">
+              <input type="checkbox" id="fileWordBreakToggle" checked>
+              <span>Word break</span>
+            </label>
+          </span>
+        </span>
       </summary>
       <div class="panel-body file-body" id="fileBody"></div>
     </details>
@@ -624,6 +635,13 @@ function loadFile(path,name){
 function escapeHtml(s){
   return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
+
+// File display toggles live inside the <summary>; keep their clicks from
+// collapsing the file panel. Their checked state drives the wrapping and
+// word-break rules directly through CSS :has() selectors.
+document.getElementById('fileViewOptions').addEventListener('click',function(e){
+  e.stopPropagation();
+});
 
 // Search filtering
 document.getElementById('q').addEventListener('input',function(){

@@ -10,20 +10,33 @@ package ui
 // Behaviour is CSS-only:
 //   - The `#menu-collapse` checkbox toggles `.footer-menu-links` via
 //     a sibling combinator and flips the toggle glyph >> ↔ <<.
+//   - A minimal localStorage bridge persists that checkbox and syncs
+//     it across same-origin tabs and iframes.
 //   - `:target` on a `<p>` inside `.footer-content` activates the
 //     frunk (display:block via :has), populates the `.frunk-title`
 //     and `.frunk-submenu` for that link, and reveals the matching
 //     `<p>`.
 //   - `.footer-close` is a plain `<a href="#">` that clears the URL
 //     fragment, which hides the frunk.
-//
-// The template expects `.RepoName` in the data passed to Execute.
 const Footer = `<footer class="all-footer">
   <input type="checkbox" id="menu-collapse" class="menu-collapse-toggle" aria-hidden="true">
+  <script>
+  (function(){
+    var toggle=document.getElementById('menu-collapse');
+    var storageKey='anyserver.footer-menu-collapsed';
+    try { toggle.checked=localStorage.getItem(storageKey)==='1'; } catch (_) {}
+    toggle.addEventListener('change',function(){
+      try { localStorage.setItem(storageKey,toggle.checked?'1':'0'); } catch (_) {}
+    });
+    window.addEventListener('storage',function(event){
+      if(event.key===storageKey) toggle.checked=event.newValue==='1';
+    });
+  })();
+  </script>
   <div class="footer-base">
     <div class="footer-controls">
+      <span><a href="https://accretional.com/" target="_blank" rel="noopener">Accretional</a> ©</span>
       <img class="spinner-disk" src="/static/accretion_256.webp" alt="" aria-hidden="true">
-      <span><b>{{.RepoName}}</b> — Status: <b>Alpha</b> — Built 2026 — Free &amp; Open Source by <a href="https://accretional.com/" target="_blank" rel="noopener">Accretional</a> ©</span>
     </div>
     <div class="footer-menu">
       <label for="menu-collapse" class="menu-toggle" aria-label="Collapse menu"></label>
