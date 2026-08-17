@@ -1,0 +1,596 @@
+/* base.css — site-wide foundation
+ *
+ * Variables, reset, and shared components used across all pages.
+ * Page-specific styles go in app.css (root) or docs.css (api/docs/server).
+ */
+
+/* ── Variables & Reset ──────────────────────────────────── */
+
+:root {
+    --amber: #f59e0b;
+    --amber-dim: rgba(245,158,11,0.55);
+    --amber-bg: rgba(245,158,11,0.07);
+    --stroke: rgba(245,158,11,0.35);
+    --text: #d6d6d6;
+    --muted: #8a8a8a;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html {
+    scrollbar-color: var(--amber-dim) black;
+    scrollbar-width: thin;
+}
+::-webkit-scrollbar { width: 8px; height: 8px; background: #000; }
+::-webkit-scrollbar-thumb { background: var(--amber-dim); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--amber); }
+
+/* Any link that opens in a new tab/window gets a small ↗ glyph after
+ * it — pure CSS attribute selector, no JS.  Applies site-wide so any
+ * future <a target="_blank"> link is automatically annotated. */
+a[target="_blank"]::after {
+    content: '↗';
+    display: inline-block;
+    margin-left: 2px;
+    font-size: .85em;
+    color: var(--amber-dim);
+    vertical-align: super;
+    line-height: 1;
+}
+a[target="_blank"]:hover::after { color: var(--amber); }
+
+body {
+    font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+    background: #000;
+    color: var(--text);
+    line-height: 1.5;
+    font-size: 12px;
+}
+
+/* Sticky-footer shell used by docs/api/server/placeholder pages — the
+ * all-footer pins to viewport bottom on short pages and sits at end
+ * of content on long ones.  (The index page uses body.app instead.) */
+body.page-shell {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+body.page-shell > .content { flex: 1; }
+body.page-shell > .all-footer { flex-shrink: 0; }
+
+/* Shared embeddable iframe wrapper.  Any iframe (wormhole stream,
+ * docs iframe, etc.) wearing `.iframe-pane` gets the amber theme
+ * automatically — borders, hover, background.  Width/height are left
+ * to per-use-site classes so the look stays consistent regardless
+ * of size. */
+.iframe-pane {
+    width: 100%;
+    border: 1px solid var(--stroke);
+    border-radius: 3px;
+    background: rgba(0,0,0,.55);
+    transition: border-color .15s;
+}
+.iframe-pane:hover { border-color: var(--amber); }
+
+/* ── Ticker nav ─────────────────────────────────────────── */
+
+.ticker {
+    height: 24px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 8px;
+    background: rgba(0,0,0,.86);
+    border-bottom: 1px solid var(--amber);
+    white-space: nowrap;
+    overflow: hidden;
+    font-size: 11px;
+}
+.ticker a { color: var(--amber); text-decoration: none; }
+.ticker a:hover { text-decoration: underline; }
+.ticker .dot { color: var(--amber); opacity: .7; }
+.ticker b { color: var(--amber); font-weight: 600; }
+
+/* ── Panel ──────────────────────────────────────────────── */
+
+.panel {
+    border: 1px solid var(--stroke);
+    background: rgba(0,0,0,.55);
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    transition: border-color .15s;
+}
+.panel:hover { border-color: var(--amber); }
+/* Unified panel header — one structure used by every panel.
+ *
+ *   <div class="panel-header">
+ *     <span class="panel-name">…title…</span>
+ *     <span class="panel-interface">…subtitle / icons / tabs…</span>
+ *     <label class="panel-header-toggle">
+ *       <input type="checkbox" class="panel-collapse-toggle">
+ *     </label>
+ *   </div>
+ *
+ * Layout: name (left, intrinsic) · interface (flex:1, fills gap) ·
+ * toggle (right, intrinsic).  The interface slot is where iframe
+ * panels put their URL subtitle, file panels their line count, and
+ * the console its tab strip + auth controls.
+ */
+.panel-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 2px 8px 3px;
+    border-bottom: 1px solid var(--stroke);
+    background: var(--amber-bg);
+    color: var(--amber);
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    font-weight: 600;
+    font-size: 10px;
+}
+.panel-header a { color: inherit; text-decoration: none; }
+.panel-header a:hover { text-decoration: underline; }
+
+.panel-name { font-weight: 600; flex-shrink: 0; }
+
+.panel-interface {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: var(--muted);
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: normal;
+    overflow: hidden;
+}
+/* Native <details>/<summary> collapse — the toggle glyph is added
+ * automatically by this single CSS rule, on every .panel-header.
+ * No per-panel markup is needed.
+ *
+ * Markup:
+ *   <details class="panel" open>
+ *     <summary class="panel-header"> … </summary>
+ *     <div class="panel-body"> … </div>
+ *   </details>
+ *
+ * Clicking the <summary> toggles the <details>; modern browsers
+ * hide the body content automatically.  We suppress the native
+ * disclosure marker and render a square − / + glyph instead.
+ */
+summary.panel-header { list-style: none; cursor: pointer; }
+summary.panel-header::-webkit-details-marker { display: none; }
+.panel-header::after {
+    content: '\2212';                /* − minus (open) */
+    flex-shrink: 0;
+    width: 1.5rem;
+    text-align: center;
+    line-height: 1;
+    padding: 1px 0;
+    border: 1px solid var(--stroke);
+    border-radius: 2px;
+    background: rgba(0,0,0,0.4);
+    opacity: .8;
+}
+.panel-header:hover::after { opacity: 1; border-color: var(--amber); }
+details.panel:not([open]) > .panel-header::after { content: '+'; }
+/* Universal panel body — every panel's content area wears .panel-body
+ * and inherits flex-sizing + scrollability from this single rule.
+ * Modifier classes below tune internals (no-padding, layout).
+ *
+ * Note: when the panel is a <details>, browsers wrap non-summary
+ * children in an anonymous block that breaks the parent's flex chain.
+ * We sidestep that by sizing the body via min-height:0 + flex:1 1 0
+ * and ALSO by giving the details parent itself explicit overflow
+ * containment so the body's overflow:auto has something to scroll
+ * within. */
+.panel-body {
+    flex: 1 1 0;
+    min-height: 0;
+    padding: 5px 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    overflow: auto;
+}
+
+/* <details>.panel sizing.  When open, the non-summary children are
+ * wrapped by the browser in an anonymous content slot (exposed in
+ * modern Chrome as `::details-content`).  Without explicit sizing on
+ * that slot, our .panel-body's `flex: 1` has no defined parent height
+ * to grow into — so the iframe collapses to its intrinsic 150px and
+ * scrollable bodies overflow their panel.
+ *
+ * The rules below pin the panel itself to fill its grid/flex cell,
+ * style the implicit content slot as a column flex container, and
+ * let .panel-body inside take the remaining height. */
+details.panel {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+}
+details.panel > summary { flex: 0 0 auto; }
+
+/* Modern browsers (Chrome 131+) — style the implicit content slot. */
+details.panel::details-content {
+    flex: 1 1 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* Fallback for browsers without ::details-content support — direct
+ * child .panel-body picks up flex sizing.  In modern Chrome this is
+ * harmless (matched but overridden by the ::details-content layout). */
+details.panel > .panel-body { flex: 1 1 0; min-height: 0; height: 100%; }
+
+/* Modifiers — kill the default padding/gap when the body is a single
+ * full-bleed child (iframe, code block, tab swap area, tree). */
+.panel-body.iframe-body,
+.panel-body.tab-panes,
+.panel-body.file-body,
+.panel-body.tree-body { padding: 0; gap: 0; }
+
+.panel-body.iframe-body > iframe {
+    flex: 1 1 0;
+    width: 100%;
+    height: 100%;     /* belt-and-braces against flex-basis quirks */
+    min-height: 0;
+    border: 0;
+    background: #000;
+}
+
+/* tab-panes uses absolute-positioned children (.tab-pane { position:
+ * absolute; inset: 0 }) which are out of flow — so the parent never
+ * needs its own scrollbar.  Override the inherited overflow:auto. */
+.panel-body.tab-panes {
+    position: relative;
+    overflow: hidden;
+    display: block;     /* no flex layout needed; children are absolute */
+}
+
+/* ── Tabs ───────────────────────────────────────────────── */
+
+.tab {
+    padding: 4px 10px;
+    color: var(--muted);
+    cursor: pointer;
+    border: 1px solid transparent;
+    border-bottom: none;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    background: none;
+    height: 100%;
+    display: flex;
+    align-items: center;
+}
+.tab:hover { color: var(--amber); }
+.tab.active { color: var(--amber); border-color: var(--stroke); background: rgba(0,0,0,.4); font-weight: 600; }
+.tab.locked { color: rgba(138,138,138,.4); cursor: default; pointer-events: none; }
+.tab.locked.active { color: rgba(138,138,138,.4); border-color: transparent; background: none; font-weight: 400; }
+
+.tab-pane { position: absolute; inset: 0; display: none; }
+.tab-pane.active { display: block; }
+.tab-pane iframe { width: 100%; height: 100%; border: none; background: #000; }
+
+/* ── Key/value rows ─────────────────────────────────────── */
+
+.kv { display: flex; align-items: center; gap: 6px; padding: 1px 0; border-bottom: 1px dotted rgba(245,158,11,.14); white-space: nowrap; }
+.kv:last-child { border-bottom: none; }
+.kv .name { color: var(--muted); flex-shrink: 0; }
+.kv .val { color: #e8e8e8; }
+.kv .val b { color: var(--amber); font-weight: 600; }
+
+/* ── All-footer: permanent site anchor (every page) ─────
+ *
+ * Structure:
+ *   <footer.all-footer>
+ *     <.footer-content>       — hidden by default; grows up to max(100px,50vh) on :target
+ *     <.footer-base>          — always visible; 2-row grid + optional submenu row
+ *       <.footer-controls>    — left, spans 2 rows (status text)
+ *       <.footer-info>        — top-right (copyright)
+ *       <.footer-menu>        — bottom-right (link grid + ↑ button)
+ *       <.footer-submenu>     — 3rd row, populated for multi-page links
+ *
+ * Activation is pure CSS: :target on a .footer-content child shows
+ * that <p>, and :has() on the ancestor switches the submenu row.
+ */
+
+.all-footer {
+    flex-shrink: 0;
+    background: #000;
+    border-top: 1px solid rgba(245,158,11,.25);
+    display: flex;
+    flex-direction: column;
+    z-index: 60;
+    font-size: 10px;
+    color: var(--muted);
+    position: relative;
+}
+
+.footer-base {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto auto;
+    align-items: center;
+    column-gap: 14px;
+    row-gap: 2px;
+    padding: 4px 10px;
+    min-height: 2rem;
+}
+
+.footer-controls {
+    grid-column: 1;
+    grid-row: 1;
+    display: flex;
+    align-items: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.footer-controls b { color: var(--amber); font-weight: 600; }
+.footer-controls a { color: var(--muted); text-decoration: none; }
+.footer-controls a:hover { color: var(--amber); }
+
+.footer-menu {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    white-space: nowrap;
+}
+.footer-menu-links {
+    display: inline-flex;
+    align-items: center;
+    gap: 14px;
+}
+.footer-menu-links a {
+    color: var(--muted);
+    text-decoration: none;
+    padding: 0 2px;
+    border: 1px solid transparent;
+}
+.footer-menu-links a:hover {
+    color: var(--amber);
+    background: var(--amber-bg);
+}
+
+/* Menu collapse toggle — CSS-only, no JS.
+ *
+ * `#menu-collapse` is a hidden checkbox sibling of `.footer-base`.
+ * The `<label class="menu-toggle">` is positioned BEFORE the link
+ * list (`.footer-menu-links`).  Default state shows `>>` and all
+ * links.  When the checkbox flips checked:
+ *   - the label glyph becomes `<<`
+ *   - `.footer-menu-links` is hidden via sibling combinator
+ *
+ * No JS involved — pure CSS state machine.
+ */
+.menu-collapse-toggle { display: none; }
+
+.menu-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.7rem;
+    height: 1.5rem;
+    padding: 0 4px;
+    color: var(--amber);
+    text-decoration: none;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1;
+    border: 1px solid var(--stroke);
+    border-radius: 3px;
+    background: rgba(0,0,0,.4);
+    cursor: pointer;
+    user-select: none;
+    letter-spacing: -1px;
+}
+.menu-toggle:hover { background: var(--amber-bg); border-color: var(--amber); }
+.menu-toggle::before { content: '>>'; }
+#menu-collapse:checked ~ .footer-base .menu-toggle::before { content: '<<'; }
+#menu-collapse:checked ~ .footer-base .footer-menu-links { display: none; }
+
+
+/* The frunk — content panel that pops UNDER the footer-base on :target.
+ *
+ * DOM order is <footer-base> then <footer-content>, so when the frunk
+ * is visible it occupies the row BELOW the footer-base (the footer
+ * grows downward, displacing main content upward).  Hidden by default
+ * via display:none; activated when any child <p> matches :target.
+ */
+.footer-content {
+    display: none;
+    background: rgba(0,0,0,.96);
+    border-top: 1px solid var(--stroke);
+    overflow-y: auto;
+    max-height: max(100px, 50vh);
+    position: relative;
+}
+.all-footer:has(.footer-content :target) .footer-content {
+    display: block;
+}
+
+/* Frunk header bar — single row containing:
+ *   - .frunk-submenu (left, flex:1)   — context-sensitive subpage links
+ *   - .frunk-title   (right)          — title for the currently :target'd <p>
+ *   - .footer-close  (far right)      — × close button
+ *
+ * The title is driven by per-id `:has()` rules below, since CSS attr()
+ * can only read attributes from the SAME element. */
+.frunk-header {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 4px 10px 4px 14px;
+    background: rgba(0,0,0,.96);
+    border-bottom: 1px solid var(--stroke);
+}
+.frunk-submenu {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    gap: 14px;
+    overflow: hidden;
+}
+.frunk-submenu > div { display: none; gap: 14px; flex-wrap: wrap; }
+.frunk-submenu > div a { color: var(--amber); text-decoration: none; font-size: 11px; }
+.frunk-submenu > div a:hover { text-decoration: underline; }
+
+.all-footer:has(#api:target) .frunk-submenu > [data-for="api"],
+.all-footer:has(#docs:target) .frunk-submenu > [data-for="docs"],
+.all-footer:has(#accretional:target) .frunk-submenu > [data-for="accretional"] {
+    display: flex;
+}
+
+.frunk-title {
+    color: var(--amber);
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+.all-footer:has(#about:target)       .frunk-title::before { content: 'About anyserver'; }
+.all-footer:has(#privacy:target)     .frunk-title::before { content: 'Privacy Policy'; }
+.all-footer:has(#terms:target)       .frunk-title::before { content: 'Terms and Conditions'; }
+.all-footer:has(#api:target)         .frunk-title::before { content: 'API Reference'; }
+.all-footer:has(#docs:target)        .frunk-title::before { content: 'Documentation'; }
+.all-footer:has(#accretional:target) .frunk-title::before { content: 'Accretional'; }
+
+/* Frunk close — anchor styled as a button, sits to the right of the
+ * title inside .frunk-header. */
+.footer-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.6rem;
+    height: 1.6rem;
+    color: var(--amber);
+    text-decoration: none;
+    font-size: 16px;
+    line-height: 1;
+    font-weight: 600;
+    border: 1px solid var(--stroke);
+    border-radius: 3px;
+    background: rgba(0,0,0,.7);
+}
+.footer-close:hover { background: var(--amber-bg); border-color: var(--amber); color: #f87171; }
+.footer-close::before { content: '\00d7'; }
+
+.footer-content p {
+    display: none;
+    white-space: pre-wrap;
+    color: var(--text);
+    line-height: 1.5;
+    font-size: 11px;
+    padding: 8px 14px;
+}
+.footer-content p:target { display: block; }
+
+/* Spinner — the accretion webp is self-animated, no CSS rotation needed. */
+.spinner-disk {
+    width: 1.9rem;
+    height: 1.9rem;
+    border-radius: 50%;
+    vertical-align: middle;
+    margin-right: 8px;
+}
+
+/* ── README content ─────────────────────────────────────── */
+
+.readme-content {
+    font-size: 12px;
+    line-height: 1.7;
+    color: var(--text);
+}
+
+.readme-content h1, .readme-content h2, .readme-content h3 {
+    color: var(--amber);
+    margin-top: 1.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.readme-content pre {
+    background: rgba(245,158,11,.05);
+    border: 1px solid var(--stroke);
+    padding: 0.75rem;
+    overflow-x: auto;
+    font-size: 11px;
+}
+
+.readme-content code {
+    font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+    font-size: 0.95em;
+}
+
+.readme-content a { color: var(--amber); }
+.readme-content p { margin-bottom: 0.75rem; }
+.readme-content ul, .readme-content ol { margin-left: 1.5rem; margin-bottom: 0.75rem; }
+
+/* ── File panel ─────────────────────────────────────────── */
+/* ONE `line-number` counter, defined at the .file-panel scope and
+ * incremented per `.line::before` (which renders the gutter number).
+ * `.file-panel::after` reads the final counter value to show the
+ * total — no JS line-count update, no double-counting. */
+
+.file-panel {
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+    counter-reset: line-number;
+}
+.file-panel::after {
+    content: counter(line-number) " lines";
+    position: absolute;
+    top: 4px;
+    right: 2rem;
+    color: var(--muted);
+    font-size: 10px;
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: normal;
+    pointer-events: none;
+    z-index: 1;
+}
+.file-panel:not(:has(.line))::after { display: none; }
+.file-panel pre {
+    margin: 0;
+    padding: 0;
+    font-size: 12px;
+    line-height: 1.5;
+    tab-size: 4;
+    color: var(--text);
+}
+.file-panel .line {
+    display: flex;
+    padding: 0 1rem 0 0;
+    min-height: 1.5em;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+.file-panel .line::before {
+    content: counter(line-number);
+    counter-increment: line-number;
+    flex-shrink: 0;
+    min-width: 3.5em;
+    padding-right: 1em;
+    text-align: right;
+    color: rgba(245,158,11,.35);
+    user-select: none;
+    white-space: nowrap;
+}
+.file-panel .line:hover {
+    background: rgba(245,158,11,.06);
+}
+.file-error { padding: 1rem; color: #f87171; }

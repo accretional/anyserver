@@ -1,0 +1,225 @@
+/* docs.css — styles for /api/, /docs/, /server/ pages
+ *
+ * Requires base.css to be loaded first.
+ */
+
+/* ── Content container ──────────────────────────────────── */
+
+.content {
+    max-width: 1100px;
+    margin: 1.5rem auto;
+    padding: 0 1rem;
+}
+
+.breadcrumbs {
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 1rem;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--stroke);
+}
+.breadcrumbs a { color: var(--amber); text-decoration: none; }
+.breadcrumbs a:hover { text-decoration: underline; }
+
+h2 {
+    font-size: 13px;
+    margin-bottom: 1rem;
+    font-weight: 600;
+    color: var(--amber);
+    text-transform: uppercase;
+    letter-spacing: .06em;
+}
+
+/* ── File listing ───────────────────────────────────────── */
+
+.file-list {
+    width: 100%;
+    border-collapse: collapse;
+    background: rgba(0,0,0,.5);
+    border: 1px solid var(--stroke);
+    overflow: hidden;
+}
+
+.file-list th {
+    background: var(--amber-bg);
+    text-align: left;
+    padding: 0.4rem 0.75rem;
+    font-size: 10px;
+    text-transform: uppercase;
+    color: var(--amber);
+    font-weight: 600;
+    letter-spacing: .06em;
+}
+
+.file-list td {
+    padding: 0.3rem 0.75rem;
+    border-bottom: 1px solid rgba(245,158,11,.12);
+    font-size: 12px;
+}
+
+.file-list td:last-child {
+    text-align: right;
+    color: var(--muted);
+    font-size: 11px;
+}
+
+.file-list tr:hover { background: rgba(245,158,11,.05); }
+.file-list a { color: var(--amber); text-decoration: none; }
+.file-list a:hover { text-decoration: underline; }
+
+/* ── Code view ──────────────────────────────────────────── */
+
+.file-meta {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 0.5rem;
+    font-size: 11px;
+    color: var(--muted);
+}
+
+.file-lang {
+    background: var(--amber-bg);
+    border: 1px solid var(--stroke);
+    padding: 0.1rem 0.5rem;
+    color: var(--amber);
+    font-weight: 600;
+}
+
+.code-block {
+    background: rgba(0,0,0,.5);
+    border: 1px solid var(--stroke);
+    overflow-x: auto;
+}
+
+.code-block pre {
+    margin: 0;
+    padding: 1rem;
+    font-size: 12px;
+    line-height: 1.5;
+    tab-size: 4;
+}
+
+.code-block code {
+    font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+    color: var(--text);
+}
+
+/* ── Index/section cards ────────────────────────────────── */
+
+.index-section {
+    background: rgba(0,0,0,.5);
+    border: 1px solid var(--stroke);
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.index-section h2 {
+    border-bottom: 1px solid var(--stroke);
+    padding-bottom: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.index-links {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.index-links a {
+    display: block;
+    padding: 0.6rem 1rem;
+    background: var(--amber-bg);
+    border: 1px solid var(--stroke);
+    color: var(--amber);
+    text-decoration: none;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: .04em;
+}
+
+.index-links a:hover {
+    background: rgba(245,158,11,.15);
+    border-color: var(--amber);
+}
+
+/* ── API reference ──────────────────────────────────────── */
+
+.api-endpoint {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid rgba(245,158,11,.12);
+}
+.api-endpoint:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+.api-endpoint h3 { font-size: 12px; margin-bottom: 0.5rem; color: var(--text); }
+.api-endpoint h4 { font-size: 10px; color: var(--amber); margin: 0.75rem 0 0.25rem; text-transform: uppercase; font-weight: 600; letter-spacing: .06em; }
+
+.api-method {
+    display: inline-block;
+    padding: 0.1rem 0.5rem;
+    font-size: 10px;
+    font-weight: 700;
+    color: #000;
+    background: var(--amber);
+    margin-right: 0.25rem;
+    vertical-align: middle;
+}
+
+.api-schema {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid rgba(245,158,11,.12);
+}
+.api-schema:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+.api-schema h3 { font-size: 12px; margin-bottom: 0.5rem; color: var(--text); }
+
+/* ── Package documentation ──────────────────────────────── */
+
+.doc-entry {
+    margin-bottom: 1.25rem;
+    padding-bottom: 1.25rem;
+    border-bottom: 1px solid rgba(245,158,11,.12);
+}
+.doc-entry:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+.doc-entry h4 { font-size: 12px; margin-bottom: 0.25rem; color: var(--text); }
+.doc-entry h5 { font-size: 11px; margin: 0.75rem 0 0.25rem; color: var(--amber); }
+
+.doc-sub {
+    margin-left: 1.5rem;
+    border-left: 2px solid var(--stroke);
+    padding-left: 1rem;
+}
+
+.pkg-doc { margin-bottom: 1rem; }
+.pkg-doc pre { white-space: pre-wrap; font-size: 12px; line-height: 1.5; color: var(--muted); }
+
+/* ── Wormhole / Streaming ───────────────────────────────── */
+
+.server-streams { display: flex; gap: 1rem; margin-bottom: 1.5rem; }
+.stream-col { flex: 1; min-width: 0; }
+.stream-col h2 { font-size: 12px; margin-bottom: 0.5rem; padding-bottom: 0.25rem; border-bottom: 1px solid var(--stroke); }
+
+@media (max-width: 900px) {
+    .server-streams { flex-direction: column; }
+}
+
+/* ── /server page chrome ────────────────────────────────── */
+/* (Pulled out of the Go template's inline <style> so the page
+ * picks up everything from shared CSS.  Colours come from
+ * base.css's amber vars via .iframe-pane.) */
+
+.server-body { flex: 1; overflow-y: auto; padding-bottom: 1rem; }
+.stream-pane { height: 300px; }
+.command-footer {
+    display: none;
+    flex-shrink: 0;
+    border-top: 1px solid var(--amber);
+    background: rgba(5,5,5,.94);
+}
+.command-footer.visible { display: block; }
+.command-footer iframe {
+    width: 100%;
+    height: 220px;
+    border: none;
+    background: #000;
+}

@@ -221,6 +221,51 @@ OpenAPI specs from all services are merged and rendered to a static HTML page at
 
 No JavaScript. The raw spec is also available at `/api/swagger.json`.
 
+## Service Mesh UI (`cmd/meshadapter` + `cmd/meshserver`)
+
+The same `/api/` page can front a *live* service mesh instead of a single
+build-time spec. Two commands make this work:
+
+- **`cmd/meshadapter`** — turns the mesh's service definitions into a single
+  merged Swagger 2.0 spec. It ingests two kinds of input (the same currency the
+  KVQ TypeRegistry speaks):
+  1. **Live gRPC server reflection** from running backends (e.g. chromerpc on
+     `:50051`). Every reflection-enabled backend contributes its services and
+     types to the one UI; these tags are marked `LIVE via gRPC reflection`.
+  2. **Curated protobuf FileDescriptorSets** (`.pb`, `protoc --include_imports`
+     output). Kept to a SMALL curated set to stay within memory limits.
+
+  Each gRPC service becomes a Swagger tag, each method a `POST /<pkg.Service>/<Method>`
+  path, and each message a definition. Output: a merged `swagger.json`.
+
+- **`cmd/meshserver`** — unlike `cmd/anyserver` (which `go:embed`s its own
+  spec at build time), meshserver reads an externally-generated `swagger.json`
+  and `api.html` at startup and serves them via `anyserver.Run`. The result:
+  one `/api/` page presenting EVERY integrated service/type in the mesh.
+
+End-to-end pipeline (reflection + curated sets -> merged spec -> rendered HTML
+-> served UI) is captured in **`cmd/meshserver/meshui.sh`**:
+
+```bash
+# fronts live chromerpc (:50051) + a curated SMALL descriptor set, serves on :8093
+PORT=8093 ./cmd/meshserver/meshui.sh
+```
+
+Validate through chromerpc (macOS has no `timeout`; use grpcurl's `-max-time`):
+
+```bash
+grpcurl -max-time 20 -plaintext -d '{"url":"http://localhost:8093/api/"}' \
+  localhost:50051 cdp.page.PageService/Navigate
+sleep 2
+grpcurl -max-time 20 -plaintext -d '{"format":"SCREENSHOT_FORMAT_PNG"}' \
+  localhost:50051 cdp.page.PageService/CaptureScreenshot \
+  | python3 -c "import sys,json,base64; open('/tmp/anyserver-mesh-ui.png','wb').write(base64.b64decode(json.load(sys.stdin)['data']))"
+```
+
+**Memory discipline:** only load the curated SMALL descriptor sets (e.g.
+`macos-vision.pb`, `vad.pb`, `oss-aether.pb`, `proto-ip.pb`). Do NOT load the
+giant sets (datadog/digitalocean/stripe/github/openrouter).
+
 ## Pages
 
 | Path | Description |
